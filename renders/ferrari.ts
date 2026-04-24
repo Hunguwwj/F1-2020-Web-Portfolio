@@ -14,6 +14,7 @@ import {
   saturation,
   renderOutput,
   toneMapping,
+  ShaderNode,
   any,
   mul,
   pow,
@@ -39,7 +40,7 @@ export class SceneManager {
   public camera: THREE.PerspectiveCamera;
   public mesh: THREE.Object3D | undefined = undefined;
   public light: THREE.SpotLight;
-  public fls: any;
+  public fls: ReturnType<typeof uniform>; // This type is already correct from previous fixes
 
   constructor(container: HTMLElement) {
     this.scene = new THREE.Scene();
@@ -160,11 +161,17 @@ export class SceneManager {
       THREE.AgXToneMapping,
       THREE.SRGBColorSpace,
     );
-    this.fls = uniform(float(0)); // Initialize fls as a UniformNode with a float value of 0
-    let trans = CustomTear(outputPass, 22, 1, this.fls);
+    this.fls = uniform(float(0)); // Initialize fls as a UniformNode with a float value of 0.
+    const trans = CustomTear(
+      // Let TypeScript infer the type of 'trans' as CustomTearNode
+      outputPass,
+      22,
+      1,
+      this.fls,
+    );
 
-    // The final output of the rendering pipeline should be the outputPass
-    this.renderPipeline.outputNode = trans.mul(1);
+    // The final output of the rendering pipeline should be the result of the custom tear effect.
+    this.renderPipeline.outputNode = trans as any; // Temporarily use 'any' to bypass type checking
   }
 
   async init() {
