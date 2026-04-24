@@ -1,7 +1,6 @@
 import gsap from "gsap";
 import { Lightflash, trans_Flash } from "./effect/effect";
-import { SceneManager } from "../components/ferrari";
-
+import { SceneManager } from "../renders/ferrari";
 
 export const startMainShow = (engine: SceneManager) => {
   const orbitData = { angle: 0.1 * Math.PI }; // Start at 270 degrees (behind the car)
