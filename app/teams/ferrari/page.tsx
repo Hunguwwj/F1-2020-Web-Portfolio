@@ -10,11 +10,14 @@ gsap.registerPlugin(ScrollTrigger);
 gsap.registerPlugin(useGSAP);
 import dynamic from "next/dynamic";
 
-const FerrariScene = dynamic(() => import("../../../components/ferrariCanvas"), {
-  ssr: false,
-});
+const FerrariScene = dynamic(
+  () => import("../../../components/ferrariCanvas"),
+  {
+    ssr: false,
+  },
+);
 
-export default function Home() {
+export default function Ferrari() {
   const textRef = useRef<HTMLElement>(null);
   useGSAP(
     () => {
@@ -34,7 +37,12 @@ export default function Home() {
       <FerrariScene />
 
       <section className="h-screen z-3 flex justify-center items-center relative">
-        <Image src="../../../logos/ferrari.svg" alt="" width={200} height={100} />
+        <Image
+          src="../../../logos/ferrari.svg"
+          alt=""
+          width={200}
+          height={100}
+        />
       </section>
 
       <section
