@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Bebas_Neue } from "next/font/google";
 import localFont from "next/font/local";
-import Navbar from "../components/navbar";
 import TransitionFunc from "../transition/transition";
 import "./globals.css";
 
@@ -13,6 +12,12 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const bebasNeue = Bebas_Neue({
+  variable: "--font-bebas-neue",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -34,17 +39,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${AkiraExpanded.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${AkiraExpanded.variable} ${bebasNeue.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col overflow-y-scroll no-scrollbar">
         {/* header and logos */}
         <div className="w-full bg-white absolute z-4 top-0 flex justify-center items-center p-3">
-          <Image
-            src="../../../logos/F1.svg"
-            alt=""
-            width={100}
-            height={100}
-          />
+          <Image src="../../../logos/F1.svg" alt="" width={100} height={100} />
         </div>
         <TransitionFunc>{children}</TransitionFunc>
       </body>
