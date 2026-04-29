@@ -37,12 +37,7 @@ export default function Ferrari() {
       <FerrariScene />
 
       <section className="h-screen z-3 flex justify-center items-center relative">
-        <Image
-          src="../../../logos/ferrari.svg"
-          alt=""
-          width={200}
-          height={100}
-        />
+
       </section>
 
       <section

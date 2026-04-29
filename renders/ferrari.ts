@@ -13,17 +13,18 @@ import {
   builtinAOContext,
   saturation,
   renderOutput,
-  toneMapping,
-  ShaderNode,
-  any,
   mul,
   pow,
   float,
   uniform,
+  reflector,
+  vec2,
+  texture,
 } from "three/tsl";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { ao } from "three/addons/tsl/display/GTAONode.js";
 import { traa } from "three/addons/tsl/display/TRAANode.js";
+import { smaa } from "three/examples/jsm/tsl/display/SMAANode.js";
 import { CustomTear } from "./custom_shader/glicth_custom.js";
 import { PixelMorph } from "./custom_shader/pixel_morph.js";
 
@@ -53,37 +54,102 @@ export class SceneManager {
     );
 
     //Renderer setup with WebGPU
-    this.renderer = new THREE.WebGPURenderer({ antialias: false, alpha: true });
+    this.renderer = new THREE.WebGPURenderer({
+      antialias: true,
+    });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
+
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer, better-looking shadows
+
     container.appendChild(this.renderer.domElement);
 
     //Light setup
-    this.light = new THREE.SpotLight(0xffffff, 1);
-    this.light.position.set(0, 5, 0);
-    this.light.intensity = 30.0;
+    this.light = new THREE.SpotLight(0xffffff);
+    this.light.position.set(0, 3, 0);
+
+    this.light.intensity = 1.0;
+    this.light.angle = Math.PI * 0.4;
+    this.light.penumbra = 1;
     this.scene.add(this.light);
     // Enable shadows for the light
+
     this.light.castShadow = true;
     this.light.shadow.mapSize.width = 1024;
     this.light.shadow.mapSize.height = 1024;
-    this.light.shadow.camera.near = 500;
-    this.light.shadow.camera.far = 4000;
-    this.light.shadow.camera.fov = 30;
+    this.light.shadow.camera.near = 0.1;
+    this.light.shadow.camera.far = 50;
     this.light.shadow.autoUpdate = false;
-    this.light.shadow.needsUpdate = true;
 
-    this.scene.add(new THREE.AmbientLight(0xdddddd, 0.5)); // Add some ambient light to soften shadows
+    this.scene.add(new THREE.AmbientLight(0xdddddd, 0.2));
+
+    const pl1 = new THREE.PointLight(0xffffff, 0.4, 100, 0.01);
+    const pl2 = new THREE.PointLight(0xffffff, 0.4, 100, 0.01);
+    pl1.position.set(4, 2.5, -5);
+    pl2.position.set(-4, 2.5, -5);
+    this.scene.add(pl1);
+    this.scene.add(pl2);
 
     // Load a GLTF model (replace with your model path)
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath("../models/draco/");
     const loader = new GLTFLoader();
     loader.setDRACOLoader(dracoLoader);
-    loader.load("../models/F1_Ferrari_Draco", (gltf) => {
-      this.mesh = gltf.scene;
-      this.scene.add(gltf.scene);
+    loader.load("../models/ferrari-draco", (car) => {
+      car.scene.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.mesh = car.scene;
+      this.scene.add(car.scene);
+
+      this.light.shadow.needsUpdate = true;
+    });
+    loader.load("../models/scene-draco", (gara) => {
+      gara.scene.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.scene.add(gara.scene);
+      gara.scene.position.set(0, -0.05, 0);
+
+      // Force another update for the garage
+      this.light.shadow.needsUpdate = true;
     });
     dracoLoader.dispose();
+
+    // Create the reflector
+    const textureLoader = new THREE.TextureLoader();
+    const concreteNormal = textureLoader.load(
+      "/textures/white-cliff-rock-normal.jpg",
+    );
+    concreteNormal.wrapS = THREE.RepeatWrapping;
+    concreteNormal.wrapT = THREE.RepeatWrapping;
+    concreteNormal.repeat.set(4, 4);
+
+    const normalMapNode = texture(concreteNormal);
+    const offsetXY = normalMapNode.rg.mul(2.0).sub(1.0);
+    const jitterOffset = offsetXY.mul(0.04);
+    const modUV = vec2(float(1).sub(screenUV.x), screenUV.y);
+    const distortedUV = modUV.add(jitterOffset);
+
+    const floorReflection = reflector({ generateMipmaps: true });
+    const realisticRoughReflector = (floorReflection as any).sample(
+      distortedUV,
+    );
+
+    const planeMat = new THREE.MeshBasicMaterial();
+    const planeGeo = new THREE.PlaneGeometry(20, 20);
+    planeMat.colorNode = realisticRoughReflector;
+    const plane = new THREE.Mesh(planeGeo, planeMat);
+    plane.add(realisticRoughReflector.target);
+    plane.position.set(0, 0.01, 0);
+    plane.rotation.x = Math.PI * -0.5;
+    this.scene.add(plane);
 
     //mouse event
     this.Mouse = new THREE.Vector2(0, 0);
@@ -130,9 +196,13 @@ export class SceneManager {
     //scenePass
     const scenePass = pass(this.scene, this.camera);
     //bloomPass
-    let bloomPass = bloom(scenePass, 0.8, 0.4, 0.3); // strength, radius, threshold
+    let bloomPass = bloom(scenePass, 0.1, 0.2, 0.3); // strength, radius, threshold
     //aoPass
     let aoPass = ao(prePassDepth, prePassNormal, this.camera); // depth, normal, and camera inputs
+    aoPass.radius = uniform(0.15);
+    aoPass.thickness = uniform(4);
+    aoPass.distanceExponent = uniform(0.8);
+    aoPass.distanceFallOff = uniform(0.5);
     aoPass.resolutionScale = 0.25;
     aoPass.useTemporalFiltering = true;
     const aoPassOutput = aoPass.getTextureNode();
@@ -141,28 +211,34 @@ export class SceneManager {
     let currentTexture: any;
     // Apply the customTear effect to the scenePass output
     currentTexture = scenePass.getTextureNode();
-    currentTexture = mul(currentTexture, pow(2, 1.3));
-    currentTexture = saturation(currentTexture, 1.3);
 
     // scene context
-    scenePass.contextNode = builtinAOContext(aoPassOutput.sample(screenUV).r);
+    scenePass.contextNode = builtinAOContext(
+      pow(aoPassOutput.sample(screenUV).r, 4.0),
+    );
     //post-processing pipeline
 
-    // final output + traa
+    // final output + traa// do not use with MSAA
     let traaPass = traa(
-      currentTexture.add(bloomPass),
+      scenePass.add(bloomPass),
       prePassDepth,
       prePassVelocity,
       this.camera,
     );
-    traaPass.useSubpixelCorrection = false;
-    const outputPass = renderOutput(
-      traaPass,
+
+    traaPass.useSubpixelCorrection = true;
+    let outputPass: any;
+    outputPass = renderOutput(
+      scenePass.add(bloomPass),
       THREE.AgXToneMapping,
       THREE.SRGBColorSpace,
     );
-    this.fls = uniform(float(0)); // Initialize fls as a UniformNode with a float value of 0.
-    const trans = CustomTear(
+    outputPass = mul(outputPass.sub(0.01), 1.6);
+    outputPass = saturation(outputPass, 1.2);
+
+    this.fls = uniform(float(0));
+    let tear: any;
+    tear = CustomTear(
       // Let TypeScript infer the type of 'trans' as CustomTearNode
       outputPass,
       22,
@@ -171,7 +247,7 @@ export class SceneManager {
     );
 
     // The final output of the rendering pipeline should be the result of the custom tear effect.
-    this.renderPipeline.outputNode = trans as any; // Temporarily use 'any' to bypass type checking
+    this.renderPipeline.outputNode = tear; // Temporarily use 'any' to bypass type checking
   }
 
   async init() {
@@ -185,7 +261,30 @@ export class SceneManager {
   private animate = () => {
     this.animationId = requestAnimationFrame(this.animate);
     this.time.update();
-    const delta = this.time.getDelta();
+
+    this.light.shadow.camera.up.set(0, 0, 1);
+
+    // 2. Force the Light and Target to calculate their absolute World Matrices
+    this.light.updateMatrixWorld();
+    this.light.target.updateMatrixWorld();
+
+    // 3. Extract absolute world positions (ignores local group scaling/nesting)
+    this.light.shadow.camera.position.setFromMatrixPosition(
+      this.light.matrixWorld,
+    );
+
+    const targetPosition = new THREE.Vector3();
+    targetPosition.setFromMatrixPosition(this.light.target.matrixWorld);
+
+    // 4. Orient the camera and lock its matrix
+    this.light.shadow.camera.lookAt(targetPosition);
+    this.light.shadow.camera.updateMatrixWorld();
+
+    // 5. Sync the FOV
+    this.light.shadow.camera.fov = ((this.light.angle * 180) / Math.PI) * 1.5;
+    this.light.shadow.camera.updateProjectionMatrix();
+
+    //-------//
     this.targetVelocity.x = this.Mouse.x - this.previousMouse.x;
     this.targetVelocity.y = this.Mouse.y - this.previousMouse.y;
     this.previousMouse.copy(this.Mouse);
