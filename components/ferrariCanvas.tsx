@@ -1,6 +1,5 @@
-import { SceneManager } from "../renders/ferrari";
+import { SceneManager } from "../renders/render";
 import { startMainShow, triggerCameraView } from "../hook/hero-anim";
-import { PinTrigger } from "../hook/pin_trigger";
 import { useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -18,8 +17,8 @@ const viewData = {
     labelRight: "MARANELLO, ITALY",
     hasLine: true,
     titleBehindCar: true, // <--- THE FIX: This text goes BEHIND the car
-    labelRightClass: "absolute top-[12vh] left-[5vw] overflow-hidden pb-2 pr-4",
-    labelLeftClass: "absolute top-[12vh] right-[5vw] overflow-hidden pb-2 pr-4",
+    labelRightClass: "absolute top-[14vh] left-[5vw] overflow-hidden pb-2 pr-4",
+    labelLeftClass: "absolute top-[14vh] right-[5vw] overflow-hidden pb-2 pr-4",
     titleContainerClass:
       "absolute inset-0 flex flex-col items-center justify-center font-akira",
     // Moved the heavy uppercase styling here so it doesn't break the cockpit quote!
@@ -103,7 +102,7 @@ export default function FerrariCanvas() {
       if (!cachedEngine) {
         cachedEngine = new SceneManager(containerRef.current, {
           modelPath: "../models/ferrari", // Point to the Ferrari model
-          lightColor: 0xfff0f0, // Slightly warm light
+          lightColor: 0xffffff, // Slightly warm light
           lightIntensity: 3, // Bright main light
           ambientLightColor: 0xffdddd,
           ambientIntensity: 0.4, // Keep shadows dark
@@ -127,10 +126,6 @@ export default function FerrariCanvas() {
               bottomBarRef.current,
               () => setIsEngineReady(true),
             );
-
-            if (triggerRef.current && containerRef.current) {
-              PinTrigger(containerRef.current, triggerRef.current);
-            }
           }
         });
       });
@@ -346,7 +341,7 @@ export default function FerrariCanvas() {
       </div>
 
       {/* 2. BACKGROUND TEXT LAYER (Z-15) -> Sits BEHIND the Car */}
-      <div className="absolute inset-0 z-[15] pointer-events-none">
+      <div className="absolute inset-0 z-15 pointer-events-none">
         <div className={viewData[activeView].titleContainerClass}>
           <div className="overflow-hidden pb-2 pr-10 pl-10">
             {/* GSAP attaches to this <h1> ONLY if titleBehindCar is TRUE */}
@@ -362,7 +357,7 @@ export default function FerrariCanvas() {
 
           {viewData[activeView].hasLine && (
             <div className="overflow-hidden w-full max-w-[45vw] flex justify-center mt-2 mb-4 opacity-0 pointer-events-none">
-              <div className="h-[2px] w-full" />
+              <div className="h-0.5 w-full" />
             </div>
           )}
           {viewData[activeView].subtitle && (
@@ -382,7 +377,7 @@ export default function FerrariCanvas() {
       />
 
       {/* 4. FOREGROUND TEXT LAYER (Z-25) -> Sits IN FRONT of the Car */}
-      <div className="absolute inset-0 z-[25] pointer-events-none">
+      <div className="absolute inset-0 z-25 pointer-events-none">
         {viewData[activeView].labelLeft && (
           <div className={viewData[activeView].labelRightClass}>
             <div className="text-extra opacity-0 font-akira text-[11px] uppercase leading-none tracking-[0.24em] text-white">
@@ -414,7 +409,7 @@ export default function FerrariCanvas() {
 
           {viewData[activeView].hasLine && (
             <div className="overflow-hidden w-full max-w-[45vw] flex justify-center mt-2 mb-4">
-              <div className="decorative-line opacity-0 h-[2px] w-full bg-white origin-center will-change-transform" />
+              <div className="decorative-line opacity-0 h-0.5 w-full bg-white origin-center will-change-transform" />
             </div>
           )}
 

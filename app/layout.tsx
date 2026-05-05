@@ -5,6 +5,7 @@ import TransitionFunc from "../transition/transition";
 import StaticSwipeBootSequence from "@/components/BootSequence";
 import "./globals.css";
 import Topbar from "@/components/Topbar";
+import SmoothScroll from "@/components/SmoothScroll";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -44,8 +45,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col overflow-y-scroll no-scrollbar">
         <StaticSwipeBootSequence />
-        <Topbar/>
-        <TransitionFunc>{children}</TransitionFunc>
+        <Topbar />
+        <TransitionFunc>
+          <SmoothScroll>{children}</SmoothScroll>
+        </TransitionFunc>
       </body>
     </html>
   );

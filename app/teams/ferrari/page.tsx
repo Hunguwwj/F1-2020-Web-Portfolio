@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useMemo, useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
@@ -254,25 +253,6 @@ export default function TeamPage() {
       }
 
       /**
-       * 2. MODEL 3D HERO
-       * -----------------------------------------------------
-       * Khi scroll qua hero, model xe sẽ trượt lên, zoom nhẹ và nghiêng nhẹ.
-       * scrub: true nghĩa là animation chạy ngược lại khi scroll ngược lên.
-       */
-      gsap.to(SELECTORS.modelWrapper, {
-        y: -160,
-        scale: 1.12,
-        rotate: -2.5,
-        ease: "none",
-        scrollTrigger: {
-          trigger: SELECTORS.heroSection,
-          start: "top top",
-          end: "bottom top",
-          scrub: true,
-        },
-      });
-
-      /**
        * 4. HORIZONTAL GALLERY
        * -----------------------------------------------------
        * Scroll dọc nhưng ảnh chạy ngang.
@@ -353,7 +333,7 @@ export default function TeamPage() {
           Model nằm fixed phía sau hero.
           Vì chỉ có PAGE 1 cần model, các section sau dùng z-20 để che lên.
       ===================================================== */}
-      <div className="team-car-scroll fixed left-0 top-0 z-0 h-screen w-screen scale-[1.08] pointer-events-none overflow-hidden will-change-transform">
+      <div className="team-car-scroll absolute left-0 top-0 z-0 h-screen w-screen scale-[1.08] pointer-events-none overflow-hidden will-change-transform">
         <TeamScene />
       </div>
 

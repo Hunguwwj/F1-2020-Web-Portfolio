@@ -1,0 +1,59 @@
+{
+  "season": 2020,
+
+  "drivers": [
+    { "pos": 1, "name": "Lewis Hamilton", "team": "Mercedes", "points": 347, "wins": 11 },
+    { "pos": 2, "name": "Valtteri Bottas", "team": "Mercedes", "points": 223, "wins": 2 },
+    { "pos": 3, "name": "Max Verstappen", "team": "Red Bull Racing", "points": 214, "wins": 2 },
+    { "pos": 4, "name": "Sergio Perez", "team": "Racing Point", "points": 125, "wins": 1 },
+    { "pos": 5, "name": "Daniel Ricciardo", "team": "Renault", "points": 119, "wins": 0 },
+    { "pos": 6, "name": "Carlos Sainz", "team": "McLaren", "points": 105, "wins": 0 },
+    { "pos": 7, "name": "Alexander Albon", "team": "Red Bull Racing", "points": 105, "wins": 0 },
+    { "pos": 8, "name": "Charles Leclerc", "team": "Ferrari", "points": 98, "wins": 0 },
+    { "pos": 9, "name": "Lando Norris", "team": "McLaren", "points": 97, "wins": 0 },
+    { "pos": 10, "name": "Pierre Gasly", "team": "AlphaTauri", "points": 75, "wins": 1 }
+  ],
+
+  "constructors": [
+    { "pos": 1, "team": "Mercedes", "points": 573 },
+    { "pos": 2, "team": "Red Bull Racing", "points": 319 },
+    { "pos": 3, "team": "McLaren", "points": 202 },
+    { "pos": 4, "team": "Racing Point", "points": 195 },
+    { "pos": 5, "team": "Renault", "points": 181 },
+    { "pos": 6, "team": "Ferrari", "points": 131 },
+    { "pos": 7, "team": "AlphaTauri", "points": 107 },
+    { "pos": 8, "team": "Alfa Romeo", "points": 8 },
+    { "pos": 9, "team": "Haas", "points": 3 },
+    { "pos": 10, "team": "Williams", "points": 0 }
+  ],
+
+  "stats": {
+    "worldChampion": "Lewis Hamilton",
+    "constructorChampion": "Mercedes",
+    "totalRaces": 17,
+    "mostWinsDriver": {
+      "name": "Lewis Hamilton",
+      "wins": 11
+    }
+  },
+
+  "races": [
+    { "round": 1, "name": "Austrian Grand Prix", "winner": "Valtteri Bottas" },
+    { "round": 2, "name": "Styrian Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 3, "name": "Hungarian Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 4, "name": "British Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 5, "name": "70th Anniversary Grand Prix", "winner": "Max Verstappen" },
+    { "round": 6, "name": "Spanish Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 7, "name": "Belgian Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 8, "name": "Italian Grand Prix", "winner": "Pierre Gasly" },
+    { "round": 9, "name": "Tuscan Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 10, "name": "Russian Grand Prix", "winner": "Valtteri Bottas" },
+    { "round": 11, "name": "Eifel Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 12, "name": "Portuguese Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 13, "name": "Emilia Romagna Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 14, "name": "Turkish Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 15, "name": "Bahrain Grand Prix", "winner": "Lewis Hamilton" },
+    { "round": 16, "name": "Sakhir Grand Prix", "winner": "Sergio Perez" },
+    { "round": 17, "name": "Abu Dhabi Grand Prix", "winner": "Max Verstappen" }
+  ]
+}
