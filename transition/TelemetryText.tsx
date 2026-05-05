@@ -11,55 +11,75 @@ export default function TelemetryText() {
     "SECTOR 1: 27.452 // SECTOR 2: 29.104 // SECTOR 3: 23.881 // COMPOUND: C4 SOFT // PLAN A // ";
 
   return (
-    // 1. Restored 'gap-6' to evenly space the rows apart. Added a slight overall opacity drop.
-    <div className="absolute inset-0 flex flex-col justify-center gap-6 overflow-hidden pointer-events-none mix-blend-screen opacity-60">
+    <div className="absolute inset-0 flex flex-col justify-center gap-6 overflow-hidden pointer-events-none opacity-80">
       <style>{`
         @keyframes scroll-left {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
+          0% { transform: translateX(0) translateZ(0); }
+          100% { transform: translateX(-50%) translateZ(0); }
         }
         @keyframes scroll-right {
-          0% { transform: translateX(-50%); }
-          100% { transform: translateX(0); }
+          0% { transform: translateX(-50%) translateZ(0); }
+          100% { transform: translateX(0) translateZ(0); }
         }
-        .animate-scroll-left { animation: scroll-left 40s linear infinite; }
-        .animate-scroll-right { animation: scroll-right 40s linear infinite; }
-        
-        .f1-stroke-text {
-          color: transparent;
-          /* 2. Softened the stroke from 1.0 down to 0.25 for a high-end wireframe look */
-          -webkit-text-stroke: 1px rgba(255, 255, 255, 0.25);
-        }
+        .animate-scroll-left { animation: scroll-left 30s linear infinite; will-change: transform; }
+        .animate-scroll-right { animation: scroll-right 30s linear infinite; will-change: transform; }
       `}</style>
 
       {/* ROW 1 */}
-      <div className="flex w-[200%] shrink-0 animate-scroll-left">
-        {/* 3. Scaled down to 8vw, normal leading, removed font-black and tracking-tighter */}
-        <p className="whitespace-nowrap text-[12vw] uppercase leading-none f1-stroke-text font-bebas-neue tracking-normal">
-          {textLine1.repeat(10)}
-        </p>
+      <div className="relative flex w-max animate-scroll-left">
+        {/* 1. The Invisible Anchor: Forces the width so the scroll animation loops flawlessly */}
+        <span className="whitespace-nowrap text-[16vw] uppercase leading-none font-bebas-neue invisible select-none">
+          {textLine1.repeat(2)}
+        </span>
+        {/* 2. The Flawless Vector Overlay: Physically cannot have a ghost fill */}
+        <svg className="absolute inset-0 w-full h-full overflow-visible drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+          <text
+            x="0"
+            y="85%" /* Aligns the baseline of the SVG text with the HTML text */
+            fill="none" /* ABSOLUTE ZERO FILL */
+            stroke="#FFFFFF"
+            strokeWidth="3"
+            className="text-[16vw] uppercase font-bebas-neue"
+          >
+            {textLine1.repeat(2)}
+          </text>
+        </svg>
       </div>
 
       {/* ROW 2 */}
-      {/* 4. Removed the mt-[-3vw] overlap hack */}
-      <div className="flex w-[200%] shrink-0 animate-scroll-right">
-        <p className="whitespace-nowrap text-[12vw] uppercase leading-none f1-stroke-text font-bebas-neue tracking-normal">
-          {textLine2.repeat(10)}
-        </p>
+      <div className="relative flex w-max animate-scroll-right">
+        <span className="whitespace-nowrap text-[16vw] uppercase leading-none font-bebas-neue invisible select-none">
+          {textLine2.repeat(2)}
+        </span>
+        <svg className="absolute inset-0 w-full h-full overflow-visible drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+          <text x="0" y="85%" fill="none" stroke="#FFFFFF" strokeWidth="3" className="text-[16vw] uppercase font-bebas-neue">
+            {textLine2.repeat(2)}
+          </text>
+        </svg>
       </div>
 
       {/* ROW 3 */}
-      <div className="flex w-[200%] shrink-0 animate-scroll-left">
-        <p className="whitespace-nowrap text-[12vw] uppercase leading-none f1-stroke-text font-bebas-neue tracking-normal">
-          {textLine3.repeat(10)}
-        </p>
+      <div className="relative flex w-max animate-scroll-left">
+        <span className="whitespace-nowrap text-[16vw] uppercase leading-none font-bebas-neue invisible select-none">
+          {textLine3.repeat(2)}
+        </span>
+        <svg className="absolute inset-0 w-full h-full overflow-visible drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+          <text x="0" y="85%" fill="none" stroke="#FFFFFF" strokeWidth="3" className="text-[16vw] uppercase font-bebas-neue">
+            {textLine3.repeat(2)}
+          </text>
+        </svg>
       </div>
 
       {/* ROW 4 */}
-      <div className="flex w-[200%] shrink-0 animate-scroll-right">
-        <p className="whitespace-nowrap text-[12vw] uppercase leading-none f1-stroke-text font-bebas-neue tracking-normal">
-          {textLine4.repeat(10)}
-        </p>
+      <div className="relative flex w-max animate-scroll-right">
+        <span className="whitespace-nowrap text-[16vw] uppercase leading-none font-bebas-neue invisible select-none">
+          {textLine4.repeat(2)}
+        </span>
+        <svg className="absolute inset-0 w-full h-full overflow-visible drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+          <text x="0" y="85%" fill="none" stroke="#FFFFFF" strokeWidth="3" className="text-[16vw] uppercase font-bebas-neue">
+            {textLine4.repeat(2)}
+          </text>
+        </svg>
       </div>
     </div>
   );

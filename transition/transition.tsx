@@ -113,7 +113,7 @@ export default function TransitionFunc({
           .timeline()
 
           // 3. THE BREATHER
-          .to({}, { duration: 0.5 })
+          .to({}, { duration: 0.2 })
 
           // 4. OPEN THE PORTAL
           .to(".f1-path", {

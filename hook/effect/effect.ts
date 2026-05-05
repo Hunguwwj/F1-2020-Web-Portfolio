@@ -19,10 +19,5 @@ export const Lightflash = (camera: THREE.Camera, light: THREE.Light) => {
   return tl; 
 };
 
-export const trans_Flash = (fls:any) => {
-  const tl = gsap.timeline();
-  tl.set(fls,{value:1}).to(fls,{value:0, duration: 2.0, ease: "steps(1)"})
-  return tl;
-}
 
 
