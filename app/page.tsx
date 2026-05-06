@@ -87,6 +87,7 @@ const teams = [
 export default function Home() {
   const mainRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
+  const aboutRef = useRef<HTMLElement>(null);
 
   const total = teams.length;
   const baseWidth = 100 / total;
@@ -252,6 +253,60 @@ export default function Home() {
     });
   });
 
+  // NEW: F1 2020 ABOUT SECTION ANIMATIONS
+  useGSAP(
+    () => {
+      if (!aboutRef.current) return;
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: aboutRef.current,
+          start: "top 75%", // Triggers when the top of the section hits 75% down the screen
+          once: true,
+        },
+      });
+
+      // 1. Draw the top red horizontal line
+      tl.fromTo(
+        ".about-top-line",
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.6, ease: "power3.out" },
+      );
+
+      // 2. Sequential Red Box Scan Reveals for the Massive Titles
+      const wipeElements = gsap.utils.toArray(
+        ".about-wipe-reveal",
+      ) as HTMLElement[];
+      wipeElements.forEach((el, index) => {
+        const block = el.querySelector(".about-block");
+        const content = el.querySelector(".about-content");
+        if (block && content) {
+          gsap.set(block, { width: "0%", left: "0%" });
+
+          // Start the first wipe slightly before the line finishes drawing
+          const pos = index === 0 ? "-=0.2" : "-=0.3";
+
+          tl.to(
+            block,
+            { width: "100%", duration: 0.2, ease: "power4.inOut" },
+            pos,
+          )
+            .set(content, { opacity: 1 })
+            .to(block, { left: "100%", duration: 0.2, ease: "power4.inOut" });
+        }
+      });
+
+      // 3. Smoothly stagger fade-up the editorial text and stats
+      tl.fromTo(
+        ".about-fade-up",
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.4, stagger: 0.15, ease: "power3.out" },
+        "-=0.4", // Start fading up while the "SEASON" wipe is finishing
+      );
+    },
+    { scope: aboutRef },
+  );
+
   return (
     <main ref={mainRef} className="w-full relative bg-[#0a0a0a]">
       <div
@@ -336,6 +391,127 @@ export default function Home() {
         })}
       </div>
 
+      {/* NEW: F1 2020 EDITORIAL ABOUT / SUMMARY SECTION (ANIMATED) */}
+      <section
+        ref={aboutRef}
+        className="w-full max-w-[1400px] mx-auto px-6 md:px-[50px] pt-32 pb-24 relative overflow-hidden"
+      >
+        {/* Giant Background Anchor */}
+        <div className="absolute top-0 right-0 text-[18vw] font-akira text-white/[0.02] hover:text-[#e10600]/15 transition-colors duration-500 ease-in-out leading-none select-none z-0 cursor-default">
+          2020
+        </div>
+
+        <div className="flex flex-col w-full relative z-10">
+          {/* TOP ROW: Massive Full-Width Typography */}
+          <div className="w-full pointer-events-none flex flex-col gap-2">
+            {/* Animated Top Line */}
+            <div className="about-top-line w-20 h-[4px] bg-[#e10600] mb-8 md:mb-10 origin-left scale-x-0 pointer-events-auto"></div>
+
+            {/* Word 1: AN */}
+            <div className="about-wipe-reveal relative overflow-hidden w-fit pb-1">
+              <div className="about-content opacity-0">
+                <h2 className="font-akira text-4xl md:text-6xl lg:text-[5rem] xl:text-[6rem] text-white uppercase tracking-wide leading-[1.1] pointer-events-auto">
+                  AN
+                </h2>
+              </div>
+              <div
+                className="about-block absolute top-0 left-0 h-full bg-[#e10600] z-20"
+                style={{ width: "0%" }}
+              ></div>
+            </div>
+
+            {/* Word 2: UNPRECEDENTED */}
+            <div className="about-wipe-reveal relative overflow-hidden w-fit pb-1">
+              <div className="about-content opacity-0">
+                <h2 className="font-akira text-4xl md:text-6xl lg:text-[5rem] xl:text-[6rem] text-white uppercase tracking-wide leading-[1.1] pointer-events-auto">
+                  UNPRECEDENTED
+                </h2>
+              </div>
+              <div
+                className="about-block absolute top-0 left-0 h-full bg-[#e10600] z-20"
+                style={{ width: "0%" }}
+              ></div>
+            </div>
+          </div>
+
+          {/* BOTTOM ROW: "SEASON" and Text side-by-side */}
+          <div className="w-full flex flex-col lg:flex-row justify-between items-start gap-10 lg:gap-12 mt-2 md:mt-4">
+            {/* Left Column: Word 3 (SEASON) */}
+            <div className="lg:w-5/12 shrink-0">
+              <div className="about-wipe-reveal relative overflow-hidden w-fit pb-1">
+                <div className="about-content opacity-0">
+                  <h2
+                    className="w-fit font-akira text-4xl md:text-6xl lg:text-[5rem] xl:text-[6rem] text-transparent hover:text-[#e10600] transition-colors duration-500 ease-in-out uppercase tracking-wide leading-[1.1] cursor-default"
+                    style={{ WebkitTextStroke: "2px #e10600" }}
+                  >
+                    SEASON
+                  </h2>
+                </div>
+                <div
+                  className="about-block absolute top-0 left-0 h-full bg-[#e10600] z-20"
+                  style={{ width: "0%" }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Right Column: Editorial Text & Mini-Stats (Stagger Fade Up) */}
+            <div className="lg:w-7/12 flex flex-col gap-10 lg:pt-4">
+              {/* Paragraph 1 */}
+              <div className="about-fade-up opacity-0 flex gap-6">
+                <div className="w-[2px] bg-[#e10600] shrink-0 mt-2 h-10"></div>
+                <p className="font-inter text-white/80 text-sm md:text-base leading-[1.8] tracking-wide">
+                  The 2020 FIA Formula One World Championship was a season
+                  unlike any other. Originally planned as a record-breaking
+                  22-race calendar, the global pandemic forced a complete
+                  restructuring of the sport.
+                </p>
+              </div>
+
+              {/* Paragraph 2 */}
+              <div className="about-fade-up opacity-0 flex gap-6">
+                <div className="w-[2px] bg-[#e10600] shrink-0 mt-2 h-10"></div>
+                <p className="font-inter text-white/80 text-sm md:text-base leading-[1.8] tracking-wide">
+                  What emerged was a grueling, highly compressed sprint across
+                  Europe and the Middle East. It featured dramatic
+                  double-headers, relentless triple-headers, and the return of
+                  unexpected classic circuits like Imola, Istanbul Park, and the
+                  Nürburgring. Against all odds, history was rewritten as
+                  long-standing records were shattered on the track.
+                </p>
+              </div>
+
+              {/* Clean Data Bar */}
+              <div className="about-fade-up opacity-0 flex justify-between items-end pt-8 border-t border-white/10 mt-2">
+                <div className="flex flex-col gap-2">
+                  <span className="font-akira text-3xl md:text-5xl text-white">
+                    17
+                  </span>
+                  <span className="font-orbitron text-[10px] md:text-xs text-white/50 uppercase tracking-[0.2em]">
+                    Races
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <span className="font-akira text-3xl md:text-5xl text-white">
+                    4
+                  </span>
+                  <span className="font-orbitron text-[10px] md:text-xs text-white/50 uppercase tracking-[0.2em]">
+                    New Tracks
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2 text-right">
+                  <span className="font-akira text-3xl md:text-5xl text-[#e10600]">
+                    1
+                  </span>
+                  <span className="font-orbitron text-[10px] md:text-xs text-[#e10600]/80 uppercase tracking-[0.2em]">
+                    Pandemic
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div className="relative z-10 bg-transparent">
         <Tracks />
         <Championships />
@@ -379,7 +555,7 @@ export default function Home() {
               ARCHIVE 2020
             </h2>
             <p className="font-orbitron text-[#ffffff] text-[10px] tracking-[0.2em] uppercase text-center md:text-left opacity-80">
-              Curated & Designed by Foxil
+              Curated & Designed by Beostudio
             </p>
           </div>
 
