@@ -40,14 +40,21 @@ interface SeasonData {
 }
 
 const StatCard = ({ title, value }: { title: string; value: string }) => (
-  <div className="stat-card opacity-0 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-xl p-6 relative overflow-hidden group hover:border-white/20 hover:bg-white/10 transition-all duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:-translate-y-1 hover:scale-[1.02]">
-    <div className="absolute top-0 left-0 w-1 h-full bg-[#e10600] scale-y-0 group-hover:scale-y-100 origin-bottom transition-transform duration-300"></div>
-    <p className="text-white/50 font-orbitron text-xs md:text-sm uppercase tracking-widest mb-2 relative z-10 group-hover:text-white/80 transition-colors">
-      {title}
-    </p>
-    <p className="text-white font-bold text-xl md:text-2xl font-inter relative z-10 group-hover:text-white transition-colors">
-      {value}
-    </p>
+  <div className="stat-card opacity-0 relative border-b border-white/10 py-5 md:py-6 px-4 transition-colors duration-200 hover:bg-[#e10600] group cursor-default overflow-hidden">
+    <div className="absolute inset-0 bg-[#e10600] origin-left scale-x-0 z-10 pointer-events-none group-hover:scale-x-100 transition-transform duration-300"></div>
+    <div className="relative z-20 flex items-center gap-4 md:gap-8 w-full">
+      <div className="relative font-akira text-2xl md:text-4xl text-white/40 group-hover:text-black italic w-10 md:w-16 flex-shrink-0">
+        <div className="absolute top-1/2 right-[50%] w-[156%] h-[20px] bg-[#e10600] group-hover:bg-black rotate-90 -translate-y-1/2 transition-colors duration-200"></div>
+      </div>
+      <div className="flex flex-col overflow-hidden">
+        <span className="font-akira text-lg md:text-2xl text-white group-hover:text-black uppercase truncate tracking-tight">
+          {value}
+        </span>
+        <span className="font-inter text-[10px] md:text-xs text-white/50 group-hover:text-black/70 uppercase tracking-widest mt-1 truncate">
+          {title}
+        </span>
+      </div>
+    </div>
   </div>
 );
 
@@ -55,17 +62,18 @@ export default function Championships() {
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const [seasonData, setSeasonData] = useState<SeasonData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // CRITICAL: Hydration check for React Portals
   const [isClient, setIsClient] = useState(false);
-
   const [hoveredTeam, setHoveredTeam] = useState<{
     name: string;
     x: number;
     y: number;
   } | null>(null);
-
   const [hoveredDriver, setHoveredDriver] = useState<{
+    name: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [hoveredRace, setHoveredRace] = useState<{
     name: string;
     x: number;
     y: number;
@@ -109,19 +117,35 @@ export default function Championships() {
     return key ? encodeURI(`/driver/${map[key]}`) : `/driver/default.jpg`;
   };
 
-  const handleMouseMove = (e: React.MouseEvent, team: string) => {
-    setHoveredTeam({ name: team, x: e.clientX, y: e.clientY });
-  };
-  const handleMouseLeave = () => {
-    setHoveredTeam(null);
+  const getRaceFlag = (raceName: string) => {
+    const name = raceName.toLowerCase();
+    if (name.includes("austria") || name.includes("styria")) return "at";
+    if (name.includes("hungar")) return "hu";
+    if (name.includes("briti") || name.includes("70th")) return "gb";
+    if (name.includes("spain") || name.includes("spanish")) return "es";
+    if (name.includes("belgi")) return "be";
+    if (
+      name.includes("ital") ||
+      name.includes("tuscan") ||
+      name.includes("emilia")
+    )
+      return "it";
+    if (name.includes("russia")) return "ru";
+    if (name.includes("eifel")) return "de";
+    if (name.includes("portug")) return "pt";
+    if (name.includes("turkish")) return "tr";
+    if (name.includes("bahrain") || name.includes("sakhir")) return "bh";
+    if (name.includes("abu dhabi")) return "ae";
+    return "un";
   };
 
-  const handleDriverMouseMove = (e: React.MouseEvent, driverName: string) => {
+  const handleMouseMove = (e: React.MouseEvent, team: string) =>
+    setHoveredTeam({ name: team, x: e.clientX, y: e.clientY });
+  const handleMouseLeave = () => setHoveredTeam(null);
+
+  const handleDriverMouseMove = (e: React.MouseEvent, driverName: string) =>
     setHoveredDriver({ name: driverName, x: e.clientX, y: e.clientY });
-  };
-  const handleDriverMouseLeave = () => {
-    setHoveredDriver(null);
-  };
+  const handleDriverMouseLeave = () => setHoveredDriver(null);
 
   const headerRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -134,10 +158,9 @@ export default function Championships() {
   const driversRef = useRef<HTMLDivElement>(null);
   const constructorsRef = useRef<HTMLDivElement>(null);
   const racesRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setIsClient(true); // Mount check for portals
+    setIsClient(true);
     fetch("/championships2020.json")
       .then((res) => res.json())
       .then((data) => {
@@ -194,14 +217,13 @@ export default function Championships() {
 
       gsap.fromTo(
         ".stat-card",
-        { scale: 0.9, opacity: 0, y: 20 },
+        { x: -30, opacity: 0 },
         {
-          scale: 1,
+          x: 0,
           opacity: 1,
-          y: 0,
           duration: 0.5,
           stagger: 0.1,
-          ease: "back.out(1.5)",
+          ease: "power3.out",
           scrollTrigger: {
             trigger: statsRef.current,
             start: "top 85%",
@@ -225,7 +247,6 @@ export default function Championships() {
           },
         },
       );
-
       if (driversRef.current) {
         const rows = gsap.utils.toArray(
           driversRef.current.querySelectorAll(".row-reveal-container"),
@@ -261,7 +282,6 @@ export default function Championships() {
           },
         },
       );
-
       if (constructorsRef.current) {
         const rows = gsap.utils.toArray(
           constructorsRef.current.querySelectorAll(".row-reveal-container"),
@@ -297,10 +317,9 @@ export default function Championships() {
           },
         },
       );
-
       gsap.fromTo(
-        ".race-card",
-        { x: 30, opacity: 0 },
+        ".race-row",
+        { x: -30, opacity: 0 },
         {
           x: 0,
           opacity: 1,
@@ -318,20 +337,6 @@ export default function Championships() {
     },
     { scope: mainContainerRef, dependencies: [seasonData] },
   );
-
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.deltaY !== 0 && Math.abs(e.deltaX) === 0) {
-        e.preventDefault();
-        el.scrollLeft += e.deltaY;
-      }
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, [seasonData]);
 
   if (loading) {
     return (
@@ -354,20 +359,30 @@ export default function Championships() {
       ref={mainContainerRef}
       className="page-content pt-[120px] px-6 md:px-[50px] pb-[80px] min-h-screen bg-transparent text-white overflow-x-hidden font-inter"
     >
+      {/* 
+        OPTIMIZED ANIMATION:
+        Using translate3d and will-change pushes the animation to the GPU,
+        drastically reducing lag when combined with masking gradients.
+      */}
       <style>{`
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes marquee-rtl {
+          0% { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(-50%, 0, 0); }
+        }
+        .animate-marquee {
+          animation: marquee-rtl 8s linear infinite;
+          will-change: transform;
+          backface-visibility: hidden;
+        }
       `}</style>
+
       <div className="max-w-[1400px] mx-auto">
         {/* HEADER SECTION */}
         <div ref={headerRef} className="mb-12">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-4">
             <div className="relative inline-block w-fit overflow-hidden">
               <div ref={titleRef} className="relative opacity-0">
-                <h1 className="absolute top-[3px] left-[4px] md:top-[5px] md:left-[6px] page-title font-akira text-[2.5rem] md:text-[4rem] text-white/5 uppercase tracking-[2px] leading-tight z-0 select-none">
-                  CHAMPIONSHIPS
-                </h1>
-                <h1 className="relative page-title font-akira text-[2.5rem] md:text-[4rem] text-white uppercase tracking-[2px] leading-tight z-10">
+                <h1 className="relative page-title font-akira text-[2.5rem] md:text-[6rem] text-white uppercase tracking-[2px] leading-tight z-10">
                   CHAMPIONSHIPS
                 </h1>
               </div>
@@ -396,10 +411,10 @@ export default function Championships() {
           </div>
         </div>
 
-        {/* STATS SECTION */}
+        {/* 4 STATS SECTION - Transformed to match the exact row style */}
         <div
           ref={statsRef}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-16"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-y-0 mb-20 border-t border-white/10"
         >
           <StatCard
             title="World Champion"
@@ -419,201 +434,273 @@ export default function Championships() {
           />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 xl:gap-16 mb-16">
+        {/* STANDINGS GRID */}
+        <div className="grid grid-cols-1 gap-16 mb-20">
           {/* DRIVER STANDINGS */}
-          <div ref={driversRef} className="opacity-0 relative z-10">
-            <h2 className="font-orbitron text-2xl md:text-3xl text-white mb-6 uppercase border-l-4 border-[#e10600] pl-4 flex items-center">
-              Driver Standings
-            </h2>
-            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.1)]">
-              <div className="flex bg-white/5 text-white/50 font-orbitron text-xs md:text-sm uppercase tracking-widest p-4 border-b border-white/10">
-                <div className="w-12 md:w-16 text-center">Pos</div>
-                <div className="flex-1">Driver</div>
-                <div className="flex-1 hidden sm:block">Team</div>
-                <div className="w-16 md:w-20 text-center">Wins</div>
-                <div className="w-20 md:w-24 text-right">Pts</div>
+          <div ref={driversRef} className="opacity-0 relative z-10 w-full">
+            <div className="border-b border-white/20 pb-4 mb-0 flex items-end">
+              <h2 className="font-akira text-2xl md:text-5xl text-white uppercase tracking-wider">
+                Driver Standings
+              </h2>
+            </div>
+
+            <div className="flex flex-col w-full border-t border-white/10">
+              {/* Header Row - Aligned for Universal Widths */}
+              <div className="flex items-center justify-between py-3 px-4 border-b border-white/10 text-white/30 font-orbitron text-[10px] md:text-xs uppercase tracking-widest">
+                <div className="flex items-center gap-4 md:gap-8 flex-1">
+                  <div className="w-10 md:w-16">Pos</div>
+                  <div>Driver</div>
+                </div>
+                <div className="flex items-center justify-end gap-4 md:gap-8 shrink-0 ml-4">
+                  <div className="hidden sm:block w-12 md:w-20 text-right">
+                    Wins
+                  </div>
+                  <div className="w-16 md:w-24 text-right">Pts</div>
+                </div>
               </div>
-              <div className="flex flex-col">
-                {seasonData.drivers.map((driver) => (
+
+              {/* Data Rows - Standardized Layout */}
+              {seasonData.drivers.map((driver) => {
+                const idx = driver.pos.toString().padStart(2, "0");
+                return (
                   <div
                     key={driver.name}
-                    className="row-reveal-container relative"
+                    className="row-reveal-container relative border-b border-white/10"
                   >
                     <div className="row-block absolute inset-0 bg-[#e10600] origin-left scale-x-0 z-10 pointer-events-none"></div>
 
                     <div
-                      className="row-content opacity-0 flex items-center p-4 border-b border-white/5 hover:bg-white/10 transition-colors group relative z-20 cursor-default bg-transparent pointer-events-auto"
+                      className="row-content opacity-0 flex items-center justify-between py-4 px-4 transition-colors duration-200 hover:bg-[#e10600] group relative z-20 cursor-pointer pointer-events-auto"
                       onMouseEnter={(e) =>
                         handleDriverMouseMove(e, driver.name)
                       }
                       onMouseMove={(e) => handleDriverMouseMove(e, driver.name)}
                       onMouseLeave={handleDriverMouseLeave}
                     >
-                      <div className="absolute left-0 top-0 w-1 h-full bg-[#e10600] scale-y-0 group-hover:scale-y-100 origin-bottom transition-transform duration-300"></div>
-                      <div
-                        className={`w-12 md:w-16 text-center font-orbitron font-bold text-lg md:text-xl transition-colors ${driver.pos === 1 ? "text-[#D4AF37]" : driver.pos === 2 ? "text-[#C0C0C0]" : driver.pos === 3 ? "text-[#CD7F32]" : "text-white/40 group-hover:text-white/80"}`}
-                      >
-                        {driver.pos}
+                      <div className="flex items-center gap-4 md:gap-8 flex-1 overflow-hidden">
+                        <div className="relative tracking-wide font-akira text-2xl md:text-4xl text-white/50 group-hover:text-black italic w-10 md:w-16 flex-shrink-0">
+                          {idx}
+                        </div>
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="font-akira text-lg md:text-3xl text-white group-hover:text-black uppercase truncate tracking-tight">
+                            {driver.name}
+                          </span>
+                          <span className="font-inter text-[10px] md:text-xs text-white/50 group-hover:text-black/70 uppercase tracking-widest mt-1 truncate">
+                            {driver.team}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex-1 font-bold text-white uppercase tracking-wide group-hover:text-[#e10600] transition-colors text-sm md:text-base">
-                        {driver.name}
-                      </div>
-                      <div className="flex-1 hidden sm:block text-white/50 text-xs md:text-sm uppercase tracking-wider group-hover:text-white/80 transition-colors">
-                        {driver.team}
-                      </div>
-                      <div className="w-16 md:w-20 text-center text-white/50 font-medium group-hover:text-white/90 transition-colors">
-                        {driver.wins}
-                      </div>
-                      <div className="w-20 md:w-24 text-right font-orbitron font-bold text-lg md:text-xl text-[#e10600] transition-all">
-                        {driver.points}
+
+                      <div className="flex items-center justify-end gap-4 md:gap-8 shrink-0 ml-4">
+                        <div className="hidden sm:block w-12 md:w-20 text-right font-akira text-lg md:text-4xl text-white/80 group-hover:text-black">
+                          {driver.wins}
+                        </div>
+                        <div className="w-16 md:w-24 text-right font-akira text-2xl md:text-4xl text-[#e10600] group-hover:text-black">
+                          {driver.points}
+                        </div>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
 
           {/* CONSTRUCTOR STANDINGS */}
-          <div ref={constructorsRef} className="opacity-0 relative z-10">
-            <h2 className="font-orbitron text-2xl md:text-3xl text-white mb-6 uppercase border-l-4 border-[#e10600] pl-4 flex items-center">
-              Constructor Standings
-            </h2>
-            <div className="bg-white/5 backdrop-blur-2xl border border-white/10 rounded-xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.1)]">
-              <div className="flex bg-white/5 text-white/50 font-orbitron text-xs md:text-sm uppercase tracking-widest p-4 border-b border-white/10">
-                <div className="w-12 md:w-16 text-center">Pos</div>
-                <div className="flex-1">Team</div>
-                <div className="w-20 md:w-24 text-right">Pts</div>
+          <div ref={constructorsRef} className="opacity-0 relative z-10 w-full">
+            <div className="border-b border-white/20 pb-4 mb-0 flex items-end">
+              <h2 className="font-akira text-2xl md:text-5xl text-white uppercase tracking-wider">
+                Team Standings
+              </h2>
+            </div>
+
+            <div className="flex flex-col w-full border-t border-white/10">
+              {/* Header Row - Aligned for Universal Widths */}
+              <div className="flex items-center justify-between py-3 px-4 border-b border-white/10 text-white/30 font-orbitron text-[10px] md:text-xs uppercase tracking-widest">
+                <div className="flex items-center gap-4 md:gap-8 flex-1">
+                  <div className="w-10 md:w-16">Pos</div>
+                  <div>Team</div>
+                </div>
+                <div className="flex items-center justify-end gap-4 md:gap-8 shrink-0 ml-4">
+                  <div className="hidden sm:block w-12 md:w-20 text-right"></div>{" "}
+                  {/* Placeholder to perfectly align Points */}
+                  <div className="w-16 md:w-24 text-right">Pts</div>
+                </div>
               </div>
-              <div className="flex flex-col">
-                {seasonData.constructors.map((team) => (
+
+              {/* Data Rows - Standardized Layout */}
+              {seasonData.constructors.map((team) => {
+                const idx = team.pos.toString().padStart(2, "0");
+                return (
                   <div
                     key={team.team}
-                    className="row-reveal-container relative"
+                    className="row-reveal-container relative border-b border-white/10"
                   >
                     <div className="row-block absolute inset-0 bg-[#e10600] origin-left scale-x-0 z-10 pointer-events-none"></div>
 
                     <div
-                      className="row-content opacity-0 flex items-center p-4 border-b border-white/5 hover:bg-white/10 transition-colors group relative z-20 cursor-default bg-transparent pointer-events-auto"
+                      className="row-content opacity-0 flex items-center justify-between py-4 px-4 transition-colors duration-200 hover:bg-[#e10600] group relative z-20 cursor-pointer pointer-events-auto"
                       onMouseEnter={(e) => handleMouseMove(e, team.team)}
                       onMouseMove={(e) => handleMouseMove(e, team.team)}
                       onMouseLeave={handleMouseLeave}
                     >
-                      <div className="absolute left-0 top-0 w-1 h-full bg-[#e10600] scale-y-0 group-hover:scale-y-100 origin-bottom transition-transform duration-300"></div>
-                      <div
-                        className={`w-12 md:w-16 text-center font-orbitron font-bold text-lg md:text-xl transition-colors ${team.pos === 1 ? "text-[#D4AF37]" : "text-white/40 group-hover:text-white/80"}`}
-                      >
-                        {team.pos}
+                      <div className="flex items-center gap-4 md:gap-8 flex-1 overflow-hidden">
+                        <div className="relative tracking-wide font-akira text-2xl md:text-4xl text-white/40 group-hover:text-black italic w-10 md:w-16 flex-shrink-0">
+                          {idx}
+                        </div>
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="font-akira text-lg md:text-3xl text-white group-hover:text-black uppercase truncate tracking-tight">
+                            {team.team}
+                          </span>
+                        </div>
                       </div>
-                      <div
-                        className={`flex-1 font-bold uppercase tracking-wide transition-colors text-sm md:text-base ${team.pos === 1 ? "text-[#D4AF37]" : "text-white group-hover:text-[#e10600]"}`}
-                      >
-                        {team.team}
-                      </div>
-                      <div className="w-20 md:w-24 text-right font-orbitron font-bold text-lg md:text-xl text-[#e10600] transition-all">
-                        {team.points}
+
+                      <div className="flex items-center justify-end gap-4 md:gap-8 shrink-0 ml-4">
+                        <div className="hidden sm:block w-12 md:w-20 text-right"></div>
+                        <div className="w-16 md:w-24 text-right">
+                          <span className="font-akira text-2xl md:text-4xl text-[#e10600] group-hover:text-black">
+                            {team.points}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        {/* RACE TIMELINE */}
-        <div ref={racesRef} className="opacity-0 mb-10">
-          <h2 className="font-orbitron text-2xl md:text-3xl text-white mb-6 uppercase border-l-4 border-[#e10600] pl-4">
-            Race Calendar Results
-          </h2>
-          <div
-            ref={scrollContainerRef}
-            className="flex overflow-x-auto pb-6 pt-2 px-2 -mx-2 gap-5 hide-scrollbar"
-          >
-            {seasonData.races.map((race) => (
-              <div
-                key={race.round}
-                className="race-card opacity-0 min-w-[260px] md:min-w-[300px] bg-white/5 backdrop-blur-2xl border border-white/10 rounded-xl p-6 hover:border-[#e10600]/60 hover:bg-white/10 transition-all duration-300 group relative shadow-[0_8px_32px_rgba(0,0,0,0.2),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:-translate-y-1 hover:scale-[1.02]"
-              >
-                <div className="absolute top-0 right-6 w-[2px] h-4 bg-[#e10600]"></div>
-                <div className="text-[#e10600] font-orbitron text-xs uppercase tracking-widest mb-2 font-bold">
-                  Round {race.round}
-                </div>
-                <div className="text-white font-bold text-lg md:text-xl leading-snug mb-5 h-[56px] group-hover:text-[#e10600] transition-colors">
-                  {race.name}
-                </div>
-                <div className="pt-4 border-t border-white/10 relative">
-                  <div className="absolute top-[-1px] left-0 w-10 h-[1px] bg-[#e10600] scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-300"></div>
-                  <div className="text-white/50 text-xs uppercase tracking-wider mb-1 group-hover:text-white/70 transition-colors">
-                    Winner
+        {/* RACE TIMELINE - Marquee AND Hover Kept Together (Optimized) */}
+        <div ref={racesRef} className="opacity-0 w-full mt-12 ">
+          <div className="border-b border-white/20 pb-4 mb-0 flex items-end">
+            <h2 className="font-akira text-2xl md:text-3xl text-white uppercase tracking-wider">
+              Race Calendar Results
+            </h2>
+          </div>
+
+          <div className="flex flex-col w-full border-t border-white/10">
+            {seasonData.races.map((race) => {
+              const idx = race.round.toString().padStart(2, "0");
+              return (
+                <div
+                  key={race.round}
+                  className="race-row group relative flex items-center justify-between py-6 px-4 md:px-4 border-b border-white/10 hover:bg-[#e10600] transition-colors duration-200 cursor-pointer"
+                  onMouseEnter={(e) =>
+                    setHoveredRace({
+                      name: race.name,
+                      x: e.clientX,
+                      y: e.clientY,
+                    })
+                  }
+                  onMouseMove={(e) =>
+                    setHoveredRace({
+                      name: race.name,
+                      x: e.clientX,
+                      y: e.clientY,
+                    })
+                  }
+                  onMouseLeave={() => setHoveredRace(null)}
+                >
+                  {/* LEFT: Round, Race Name, Flag */}
+                  <div className="flex items-center md:gap-8 flex-1 overflow-hidden">
+                    {/* Number with Red Strikethrough */}
+                    <div className="relative font-akira text-4xl md:text-4xl text-white/40 group-hover:text-black italic w-10 md:w-16 flex-shrink-0">
+                      {idx}
+                    </div>
+
+                    {/* Location Name & Flag */}
+                    <div className="flex items-center gap-4 overflow-hidden">
+                      <span className="font-akira text-2xl md:text-3xl text-white group-hover:text-black uppercase truncate tracking-wide">
+                        {race.name.split(" ")[0]}
+                      </span>
+                      <img
+                        src={`https://flagcdn.com/w40/${getRaceFlag(race.name)}.png`}
+                        alt={`${race.name} flag`}
+                        className="hidden sm:block w-6 h-4 md:w-8 md:h-5 object-cover rounded-sm flex-shrink-0"
+                      />
+                    </div>
                   </div>
-                  <div className="text-white font-orbitron text-sm md:text-base transition-all">
-                    {race.winner}
+                  {/* RIGHT: Marquee Winner Name / Info */}
+
+                  <div className="flex items-center justify-end gap-4 md:gap-8 shrink-0 ml-4 pr-4">
+                    <div className="w-40 md:w-100 text-right overflow-hidden ">
+                      <span className="font-akira md:text-3xl text-white/90 group-hover:text-black transition-colors duration-200 truncate ">
+                        {race.winner}
+                      </span>
+                    </div>
+                    <div className="hidden lg:block w-24 text-right font-akira text-sm md:text-lg text-white/30 group-hover:text-black/50 tracking-widest transition-colors duration-200">
+                      WINNER
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* PORTAL MAGIC: Completely breaks the popup out of the component hierarchy so it never gets clipped */}
+      {/* MASSIVE TEAM POPUP */}
       {isClient &&
         hoveredTeam &&
         createPortal(
           <div
-            className="fixed pointer-events-none z-[99999] bg-gradient-to-br from-[#ffffff] to-[#e0e0e0] backdrop-blur-3xl rounded-xl p-3 border border-[#e10600]/50 shadow-[0_15px_40px_rgba(225,6,0,0.2)] flex flex-col items-center justify-center transform -translate-y-1/2 transition-opacity duration-200"
+            className="fixed pointer-events-none z-[99999] transform -translate-y-1/2 transition-opacity duration-200"
             style={{
               left:
-                hoveredTeam.x + 20 > window.innerWidth - 220
-                  ? hoveredTeam.x - 240
-                  : hoveredTeam.x + 20,
+                hoveredTeam.x + 40 > window.innerWidth - 300
+                  ? hoveredTeam.x - 340
+                  : hoveredTeam.x + 40,
               top: hoveredTeam.y,
             }}
           >
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-[#e10600] rounded-tr-xl opacity-80"></div>
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-[#e10600] rounded-bl-xl opacity-80"></div>
-            <div className="w-36 h-24 md:w-44 md:h-28 flex items-center justify-center px-4">
+            <div className="w-64 h-96 md:w-[300px] md:h-[200px] bg-[#000000] rounded-xl border border-[#e10600] flex flex-col items-center justify-center p-8 relative overflow-hidden">
               <img
                 src={getTeamLogo(hoveredTeam.name)}
                 alt={hoveredTeam.name}
-                className="max-w-full max-h-full object-contain"
+                className="w-3/4 h-3/4 object-contain"
               />
+              <div className="absolute bottom-0 left-0 w-full h-2 bg-[#e10600]"></div>
             </div>
           </div>,
           document.body,
         )}
 
+      {/* MASSIVE DRIVER POPUP */}
       {isClient &&
         hoveredDriver &&
         createPortal(
           <div
-            className="fixed pointer-events-none z-[99999] bg-gradient-to-br from-[#111] to-[#222] backdrop-blur-3xl rounded-xl p-3 border border-[#e10600]/40 shadow-[0_15px_40px_rgba(225,6,0,0.3)] flex flex-col items-center justify-center transform -translate-y-1/2 transition-opacity duration-200"
+            className="fixed pointer-events-none z-[99999] transform -translate-y-1/2 transition-opacity duration-200"
             style={{
               left:
-                hoveredDriver.x + 20 > window.innerWidth - 250
-                  ? hoveredDriver.x - 270
-                  : hoveredDriver.x + 20,
+                hoveredDriver.x + 40 > window.innerWidth - 300
+                  ? hoveredDriver.x - 340
+                  : hoveredDriver.x + 40,
               top: hoveredDriver.y,
             }}
           >
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-[#e10600] rounded-tr-xl opacity-70"></div>
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-[#e10600] rounded-bl-xl opacity-70"></div>
-            <div className="w-40 h-40 md:w-48 md:h-48 rounded-lg overflow-hidden border border-white/10 bg-[#0a0a0a] shadow-inner flex items-center justify-center">
-              {/* Added fallback layout so broken images show a cool F1 placeholder instead of an empty box */}
-              <img
-                src={getDriverImage(hoveredDriver.name)}
-                alt={hoveredDriver.name}
-                className="w-full h-full object-cover object-top filter contrast-125 saturate-110"
-                onError={(e) => {
-                  e.currentTarget.src = "/logos/F1.svg";
-                  e.currentTarget.className =
-                    "w-1/2 h-1/2 object-contain opacity-40";
-                }}
-              />
-            </div>
-            <div className="mt-3 text-white font-orbitron text-sm font-bold uppercase tracking-wider text-center">
-              {hoveredDriver.name}
+            <div className="w-64 h-96 md:w-[300px] md:h-[400px] bg-[#000000] overflow-hidden flex flex-col relative rounded-xl border border-[#e10600]">
+              {/* Image Box */}
+              <div className="flex-1 flex items-end justify-center relative z-10 ">
+                <img
+                  src={getDriverImage(hoveredDriver.name)}
+                  alt={hoveredDriver.name}
+                  className="w-full h-full object-contain object-bottom filter contrast-125 saturate-110"
+                  onError={(e) => {
+                    e.currentTarget.src = "/logos/F1.svg";
+                    e.currentTarget.className =
+                      "w-1/2 h-1/2 object-contain opacity-40 mb-10";
+                  }}
+                />
+              </div>
+              {/* Name Box */}
+              <div className="w-full bg-[#1a1a1a] py-4 md:py-6 text-center z-20">
+                <span className="text-white font-akira text-sm md:text-xl uppercase tracking-wider">
+                  {hoveredDriver.name}
+                </span>
+              </div>
+              <div className="absolute bottom-0 left-0 w-full h-2 bg-[#e10600] z-20"></div>
             </div>
           </div>,
           document.body,

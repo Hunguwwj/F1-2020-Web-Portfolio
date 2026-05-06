@@ -35,7 +35,7 @@ export class TrackRenderer {
       1,
       1000,
     );
-    this.camera.zoom = 4.5;
+    this.camera.zoom = 10;
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -83,8 +83,8 @@ export class TrackRenderer {
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     this.scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    dirLight.position.set(100, 200, 50);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 10);
+    dirLight.position.set(1, 2, 5);
     this.scene.add(dirLight);
 
     this.resizeObserver = new ResizeObserver((entries) => {
@@ -151,7 +151,7 @@ export class TrackRenderer {
           profileShape.lineTo(-trackWidth / 2, 0);
 
           const extrudeSettings = {
-            steps: 300,
+            steps: 600,
             extrudePath: curve,
             bevelEnabled: false,
           };
@@ -164,14 +164,15 @@ export class TrackRenderer {
           // UPDATED: Translucent White Material
           const material = new THREE.MeshStandardMaterial({
             color: 0xffffff, // Changed to White
-            roughness: 0.1, // Smoother for a glass-like look
-            metalness: 0.8, // Higher metalness catches light better
+            roughness: 0.8, // Smoother for a glass-like look
+            metalness: 0.2, // Higher metalness catches light better
             side: THREE.DoubleSide,
             transparent: true, // Enabled Alpha
             opacity: 0.25, // Reduced Alpha (15% visible)
           });
 
           const mesh = new THREE.Mesh(geometry, material);
+          
           this.trackGroup.add(mesh);
         });
       });
@@ -205,7 +206,7 @@ export class TrackRenderer {
 
           // Fade out the opacity as they go back
           const mat = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
+            color: 0xff0000,
             transparent: true,
             opacity: Math.max(0.01, 1 - i / trailLength),
           });

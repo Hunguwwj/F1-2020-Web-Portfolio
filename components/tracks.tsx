@@ -7,18 +7,15 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 gsap.registerPlugin(ScrollTrigger);
 import { TrackRenderer } from "../renders/trackRender";
 
-// 1. THE COMPONENT (No changes needed if it looks exactly like this)
+// 1. THE COMPONENT
 const AnimatedTrack = ({ track }: { track: any }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<TrackRenderer | null>(null);
 
   useEffect(() => {
-    // Mount once
     if (mountRef.current && !rendererRef.current) {
       rendererRef.current = new TrackRenderer(mountRef.current);
     }
-
-    // Cleanup on page unmount
     return () => {
       if (rendererRef.current) {
         rendererRef.current.destroy();
@@ -28,13 +25,12 @@ const AnimatedTrack = ({ track }: { track: any }) => {
   }, []);
 
   useEffect(() => {
-    // Hot-swap the track geometry when selection changes
     if (rendererRef.current && track?.image) {
       rendererRef.current.loadTrack(track.image);
     }
   }, [track?.image]);
 
- return <div ref={mountRef} className="absolute inset-0 w-full h-full" />;
+  return <div ref={mountRef} className="absolute inset-0 w-full h-full" />;
 };
 
 const tracksData = [
@@ -247,15 +243,42 @@ export default function Tracks() {
   const line1Ref = useRef<HTMLDivElement>(null);
   const line2Ref = useRef<HTMLDivElement>(null);
   const boxRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const scrollTarget = useRef(0);
 
-  const trackImgRef = useRef<HTMLDivElement>(null);
-  const trackImgBlockRef = useRef<HTMLDivElement>(null);
-  const infoRef = useRef<HTMLDivElement>(null);
-  const infoBlockRef = useRef<HTMLDivElement>(null);
+  // Custom Smooth Scrolling for the nested list
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
 
+    // Sync initial scroll position
+    scrollTarget.current = scroller.scrollTop;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault(); // Stop the default snappy browser scroll
+      e.stopPropagation(); // Stop GSAP ScrollSmoother from interfering
+
+      // Add wheel delta to the target
+      scrollTarget.current += e.deltaY;
+
+      // Clamp the target so we don't scroll past the top or bottom
+      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+      scrollTarget.current = Math.max(0, Math.min(scrollTarget.current, maxScroll));
+
+      // Tween the scroll position smoothly using GSAP
+      gsap.to(scroller, {
+        scrollTop: scrollTarget.current,
+        duration: 0.7, // Adjust this to make it more/less "floaty"
+        ease: "power3.out",
+        overwrite: "auto",
+      });
+    };
+
+    scroller.addEventListener("wheel", handleWheel, { passive: false });
+    return () => scroller.removeEventListener("wheel", handleWheel);
+  }, []);
   useGSAP(
     () => {
-      // Hàm tái sử dụng cho hiệu ứng Block Reveal
       const applyBlockReveal = (
         block: any,
         content: any,
@@ -294,36 +317,6 @@ export default function Tracks() {
           "-=0.3",
         );
 
-      // --- TRACK IMAGE REVEAL ---
-      const tlImg = gsap.timeline({
-        scrollTrigger: {
-          trigger: trackImgBlockRef.current,
-          start: "top 80%",
-          once: true,
-        },
-      });
-      applyBlockReveal(
-        trackImgBlockRef.current,
-        trackImgRef.current,
-        undefined,
-        tlImg,
-      );
-
-      // --- TRACK INFO REVEAL ---
-      const tlInfo = gsap.timeline({
-        scrollTrigger: {
-          trigger: infoBlockRef.current,
-          start: "top 85%",
-          once: true,
-        },
-      });
-      applyBlockReveal(
-        infoBlockRef.current,
-        infoRef.current,
-        undefined,
-        tlInfo,
-      );
-
       // --- ROWS REVEAL ---
       const rowElements = gsap.utils.toArray(
         ".track-row-reveal",
@@ -337,7 +330,6 @@ export default function Tracks() {
         const tlRow = gsap.timeline({
           scrollTrigger: {
             trigger: el,
-            // The header uses the window, but the tracks use our new invisible scroll box!
             scroller: index === 0 ? window : "#tracks-scroller",
             start: "top 95%",
             once: true,
@@ -353,194 +345,167 @@ export default function Tracks() {
     },
     { scope: containerRef },
   );
-
   return (
     <div
       id="tracks"
       ref={containerRef}
-      className="page-content pt-[120px] px-6 md:px-[50px] pb-[50px] min-h-screen bg-transparent text-white"
+      className="page-content pt-[120px] pb-[80px] min-h-screen bg-transparent text-white"
     >
       <style>
         {`
-
-        /* Hide Scrollbar for the track list */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}
       </style>
-      <div className="max-w-[1400px] mx-auto">
-        <div ref={headerRef} className="mb-10 relative flex flex-col">
-          {/* Vùng chứa Title và Block Reveal */}
+
+      <div className="w-full max-w-[1600px] mx-auto px-0 md:px-6">
+        {/* HEADER */}
+        <div
+          ref={headerRef}
+          className="mb-10 relative flex flex-col px-6 md:px-0"
+        >
           <div className="relative w-fit mx-auto mb-4 overflow-hidden">
             <h1
               ref={titleRef}
-              className="page-title font-akira text-[3rem] md:text-[5rem] text-center uppercase tracking-[2px] opacity-0 drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] animate-title-flicker"
+              className="page-title font-akira text-[3rem] md:text-[5rem] text-center text-white uppercase tracking-[2px] opacity-0"
             >
               F1 2020 Tracks
             </h1>
-            {/* Khối trượt (Block Reveal) */}
             <div
               ref={blockRef}
               className="absolute top-0 left-0 w-full h-full bg-[#e10600] origin-left scale-x-0 z-10"
             ></div>
           </div>
-
           <div className="relative w-full h-[24px]">
-            {/* F1 Style Decorative Lines (Connected) */}
             <div className="absolute bottom-0 left-0 w-[calc(100%-15px)] h-[18px] skew-x-[-30deg] origin-bottom-right">
               <div
                 ref={line1Ref}
-                className="absolute bottom-0 left-0 w-[calc(100%-10px)] h-[8px] bg-[#e10600] origin-left rounded-l-[1px] shadow-[0_0_12px_rgba(225,6,0,0.5)] scale-x-0 z-0"
-              ></div>
+                className="absolute bottom-0 left-0 w-[calc(100%-10px)] h-[8px] bg-[#e10600] origin-left rounded-l-[1px] scale-x-0 z-0"
+              />
               <div
                 ref={line2Ref}
-                className="absolute top-0 left-0 w-[calc(100%-10px)] h-[8px] bg-[#e10600] origin-left rounded-l-[1px] shadow-[0_0_12px_rgba(225,6,0,0.5)] scale-x-0 z-0"
-              ></div>
+                className="absolute top-0 left-0 w-[calc(100%-10px)] h-[8px] bg-[#e10600] origin-left rounded-l-[1px] scale-x-0 z-0"
+              />
               <div
                 ref={boxRef}
-                className="absolute bottom-0 right-0 w-[8px] h-[18px] bg-[#e10600] origin-bottom-right shadow-[0_0_15px_rgba(225,6,0,0.6)] rounded-r-[1px] opacity-0 scale-0"
-              ></div>
+                className="absolute bottom-0 right-0 w-[8px] h-[18px] bg-[#e10600] origin-bottom-right rounded-r-[1px] opacity-0 scale-0"
+              />
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-10">
-          {/* Left Side: Selected Track Details (Sticky) */}
-          <div className="w-full lg:w-[50%] relative">
-            <div className="sticky top-[120px] bg-white/5 backdrop-blur-2xl rounded-3xl p-0 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_1px_rgba(255,255,255,0.1)] flex flex-col overflow-hidden">
-              {/* Track Image Reveal Wrapper */}
-              <div className="relative w-full overflow-hidden mb-0">
-                <div
-                  ref={trackImgBlockRef}
-                  className="absolute top-0 left-0 w-full h-full bg-[#e10600] origin-left scale-x-0 z-20 rounded-xl"
-                ></div>
-                <div
-                  ref={trackImgRef}
-                  className="w-full h-91 relative flex items-center justify-center opacity-0"
-                >
-                  {selectedTrack.image ? (
-                    <AnimatedTrack track={selectedTrack} />
-                  ) : (
-                    <div className="w-full h-full border-2 border-dashed border-white/10 rounded-xl flex items-center justify-center">
-                      <span className="text-white/40 font-inter text-sm uppercase tracking-wider">
-                        No Track Data
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+        {/* BORDERLESS HUD DESIGN */}
+        <div className="relative w-full min-h-[75vh] md:min-h-[800px] flex overflow-hidden border-y border-white/10 md:border md:rounded-sm bg-[#0a0a0a]">
+          {/* LEFT VERTICAL STRIP */}
+          <div className="hidden md:flex w-16 lg:w-20 border-r border-white/10 bg-[#0a0a0a] flex-col items-center justify-between py-8 z-20 shrink-0 relative">
+            <img
+              src={`https://flagcdn.com/w40/${selectedTrack.flag}.png`}
+              width="32"
+              alt={`${selectedTrack.flag} flag`}
+              className="object-cover opacity-80"
+            />
+            {/* Giant Vertical Text */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <h2 className="font-akira text-[4rem] text-white whitespace-nowrap -rotate-90 tracking-widest uppercase">
+                {selectedTrack.location}
+              </h2>
+            </div>
+            <span className="font-orbitron font-bold text-white text-lg z-10">
+              {(tracksData.findIndex((t) => t.id === selectedTrack.id) + 1)
+                .toString()
+                .padStart(2, "0")}
+            </span>
+          </div>
 
-              {/* Minimal Track Info Reveal Wrapper */}
-              <div className="relative w-full overflow-hidden p-4">
-                <div
-                  ref={infoBlockRef}
-                  className="absolute top-0 left-0 w-full h-full bg-[#e10600] origin-left scale-x-0 z-20"
-                ></div>
-                <div
-                  ref={infoRef}
-                  className="flex items-center justify-between relative z-10 border-t border-white/10 pt-6 opacity-0"
-                >
+          <div className="flex-1 relative flex flex-col p-6 lg:p-10">
+            {/* 3D Track Background (Broken out of flexbox to force massive scale) */}
+            <div className="absolute top-1/2 left-1/2 w-[180%] h-[180%] md:w-[160%] md:h-[160%] -translate-x-[-60%] lg:-translate-x-[55%] -translate-y-[45%] z-0 pointer-events-none opacity-90">
+              {selectedTrack.image && <AnimatedTrack track={selectedTrack} />}
+            </div>
+
+            {/* TOP OVERLAY UI */}
+            <div className="relative z-10 flex flex-col lg:flex-row justify-between w-full h-full pointer-events-none">
+              {/* TOP LEFT: Flat HUD Stats */}
+              <div className="flex flex-col gap-6 w-full lg:w-1/2 pointer-events-auto mb-10 lg:mb-0">
+                <div>
+                  <h3 className="font-akira text-2xl lg:text-4xl text-white uppercase tracking-wider mb-2">
+                    {selectedTrack.name.replace(" GP", "")}
+                  </h3>
+                  <p className="font-inter text-white/60 font-bold tracking-[2px] uppercase text-sm">
+                    {selectedTrack.circuit}
+                  </p>
+                </div>
+
+                <div className="flex gap-8 border-l-2 border-[#e10600] pl-4">
                   <div className="flex flex-col">
-                    <h2 className="font-orbitron font-black text-2xl md:text-3xl uppercase leading-tight text-white">
-                      {selectedTrack.name.replace(" GP", "")}
-                    </h2>
-                    <span className="font-inter text-[#e10600] text-sm font-bold uppercase tracking-[2px] mt-1">
+                    <span className="text-white/40 font-inter text-[10px] uppercase tracking-widest mb-1">
+                      City
+                    </span>
+                    <span className="text-white font-bold text-xl uppercase font-orbitron">
                       {selectedTrack.location}
                     </span>
                   </div>
-                  <img
-                    src={`https://flagcdn.com/w80/${selectedTrack.flag}.png`}
-                    width="48"
-                    alt={`${selectedTrack.flag} flag`}
-                    className="rounded-sm shadow-lg border border-white/10 flex-shrink-0 object-cover"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Side: List of Tracks */}
-          <div className="w-full lg:w-[55%] relative mt-8 lg:mt-0 h-fit">
-            <div className="w-full flex flex-col border-t border-white/10">
-              {/* Table Header Reveal */}
-              <div className="track-row-reveal relative overflow-hidden">
-                <div className="row-block absolute top-0 left-0 w-full h-full bg-[#e10600] origin-left scale-x-0 z-20 pointer-events-none"></div>
-                <div className="row-content opacity-0 flex items-center py-4 px-5 text-[10px] uppercase font-orbitron tracking-widest text-white/50 border-b border-white/5">
-                  <div className="w-12 md:w-16">Round</div>
-                  <div className="flex-1">Location</div>
-                  <div className="hidden md:block flex-1">Circuit</div>
-                  <div className="w-20 md:w-24 text-right">City</div>
+                  <div className="flex flex-col">
+                    <span className="text-white/40 font-inter text-[10px] uppercase tracking-widest mb-1">
+                      Season
+                    </span>
+                    <span className="text-white font-bold text-xl uppercase font-orbitron">
+                      2020
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              {/* Scrollable Container with no visible scrollbar */}
-              <div
-                id="tracks-scroller"
-                className="flex flex-col max-h-[65vh] overflow-y-auto hide-scrollbar pb-10"
-              >
-                {tracksData.map((track, index) => {
-                  const isActive = selectedTrack.id === track.id;
-                  const idx = (index + 1).toString().padStart(2, "0");
+              {/* TOP RIGHT: Floating Scroll List (Made smaller in width) */}
+              <div className="w-full lg:w-[220px] xl:w-[260px] flex flex-col pointer-events-auto z-20">
+                {/* List Header */}
+                <div className="pb-3 mb-2 border-b border-white/20 flex justify-between items-end">
+                  <span className="text-white/50 font-inter tracking-widest text-[10px] uppercase font-bold">
+                    Select Circuit
+                  </span>
+                  <span className="text-[#e10600] font-orbitron text-xs font-bold">
+                    22 RNDS
+                  </span>
+                </div>
 
-                  return (
-                    <div
-                      key={track.id}
-                      className="track-row-reveal relative overflow-hidden shrink-0"
-                    >
-                      <div className="row-block absolute top-0 left-0 w-full h-full bg-[#e10600] origin-left scale-x-0 z-20 pointer-events-none"></div>
+                {/* Scrollable Area */}
+                <div
+                  id="tracks-scroller"
+                  ref={scrollerRef}
+                  className="flex flex-col max-h-[200px] lg:max-h-[30vh] overflow-hidden pr-1"
+                >
+                  {tracksData.map((track, index) => {
+                    const isActive = selectedTrack.id === track.id;
+                    const idx = (index + 1).toString().padStart(2, "0");
+
+                    return (
                       <div
+                        key={track.id}
                         onClick={() => setSelectedTrack(track)}
-                        className={`row-content opacity-0 group cursor-pointer flex items-center py-5 px-5 transition-all duration-300 border-b border-white/5
-                        ${
-                          isActive
-                            ? "bg-[#e10600] text-white"
-                            : "hover:bg-white/5 text-white/70 hover:text-white"
-                        }`}
+                        // Added explicit background highlight when active
+                        className={`group relative cursor-pointer flex items-center py-2 lg:py-3 px-2 transition-all duration-200 border-b border-white/5 shrink-0
+                        ${isActive ? "text-white bg-white/5" : "text-white/40 hover:text-white hover:bg-white/5"}`}
                       >
-                        {/* Round Number */}
-                        <div className="w-12 md:w-16 relative font-orbitron text-2xl font-black italic">
-                          <span
-                            className={
-                              isActive
-                                ? "text-white"
-                                : "text-white/30 group-hover:text-white/80 transition-colors"
-                            }
-                          >
-                            {idx}
-                          </span>
-                        </div>
+                        {/* Status Indicator / Line */}
+                        <div
+                          className={`absolute left-0 top-0 bottom-0 w-1 transition-colors duration-200 ${isActive ? "bg-[#e10600]" : "bg-transparent group-hover:bg-[#e10600]/50"}`}
+                        />
 
-                        {/* Track Name & Flag */}
-                        <div className="flex-1 flex items-center gap-4">
-                          <span className="font-orbitron font-bold uppercase text-base md:text-xl tracking-widest">
+                        {/* Name & Round */}
+                        <div className="flex-1 pl-3 pr-2 flex justify-between items-center">
+                          <span className="font-orbitron font-bold uppercase text-xs tracking-wider truncate block">
                             {track.name.replace(" GP", "")}
                           </span>
-                          <img
-                            src={`https://flagcdn.com/w40/${track.flag}.png`}
-                            alt={`${track.flag} flag`}
-                            className="w-5 h-3 md:w-6 md:h-4 object-cover rounded-sm shadow-sm"
-                          />
-                        </div>
-
-                        {/* Circuit Name */}
-                        <div
-                          className={`hidden md:block flex-1 font-inter text-xs md:text-sm font-medium tracking-wide transition-colors
-                        ${isActive ? "text-white/90" : "text-white/50 group-hover:text-white/80"}`}
-                        >
-                          {track.circuit}
-                        </div>
-
-                        {/* Location */}
-                        <div
-                          className={`w-20 md:w-24 text-right font-inter text-xs md:text-sm font-bold uppercase tracking-wider transition-colors
-                        ${isActive ? "text-white" : "text-white/50 group-hover:text-white/90"}`}
-                        >
-                          {track.location}
+                          <span
+                            className={`font-orbitron text-[10px] italic ${isActive ? "text-white/80" : "text-white/20"}`}
+                          >
+                            R{idx}
+                          </span>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
