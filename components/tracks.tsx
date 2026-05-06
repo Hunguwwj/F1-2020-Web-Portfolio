@@ -238,7 +238,7 @@ export default function Tracks() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [selectedTrack, setSelectedTrack] = useState(tracksData[0]);
   const headerRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLHeadingElement>(null);
+  const titleRef = useRef<HTMLDivElement>(null);
   const blockRef = useRef<HTMLDivElement>(null);
   const line1Ref = useRef<HTMLDivElement>(null);
   const line2Ref = useRef<HTMLDivElement>(null);
@@ -263,7 +263,10 @@ export default function Tracks() {
 
       // Clamp the target so we don't scroll past the top or bottom
       const maxScroll = scroller.scrollHeight - scroller.clientHeight;
-      scrollTarget.current = Math.max(0, Math.min(scrollTarget.current, maxScroll));
+      scrollTarget.current = Math.max(
+        0,
+        Math.min(scrollTarget.current, maxScroll),
+      );
 
       // Tween the scroll position smoothly using GSAP
       gsap.to(scroller, {
@@ -285,17 +288,24 @@ export default function Tracks() {
         position?: string,
         tl?: any,
       ) => {
-        tl.set(block, { transformOrigin: "left" }, position)
+        // Reset to 0 width on the left side
+        gsap.set(block, { width: "0%", left: "0%" });
+
+        tl.to(
+          block,
+          // 1. Grow the width to 100% to cover the text
+          { width: "100%", duration: 0.2, ease: "power4.inOut" },
+          position,
+        )
+          // 2. Instantly reveal the text behind it
+          .set(content, { opacity: 1 })
           .to(
             block,
-            { scaleX: 1, duration: 0.4, ease: "power4.inOut" },
-            position,
-          )
-          .set(content, { opacity: 1 })
-          .set(block, { transformOrigin: "right" })
-          .to(block, { scaleX: 0, duration: 0.4, ease: "power4.inOut" });
+            // 3. Slide the box out to the right.
+            // Because the parent has overflow-hidden, it disappears perfectly.
+            { left: "100%", duration: 0.2, ease: "power4.inOut" },
+          );
       };
-
       // --- HEADER REVEAL ---
       const tlHeader = gsap.timeline({
         scrollTrigger: {
@@ -317,30 +327,34 @@ export default function Tracks() {
           "-=0.3",
         );
 
-      // --- ROWS REVEAL ---
-      const rowElements = gsap.utils.toArray(
-        ".track-row-reveal",
-      ) as HTMLElement[];
-      rowElements.forEach((el, index) => {
-        const block = el.querySelector(".row-block") as HTMLElement;
-        const content = el.querySelector(".row-content") as HTMLElement;
+      // --- INFO HUD REVEALS (Title, Stats, & List Header) ---
+      const infoElements = gsap.utils.toArray(".info-reveal") as HTMLElement[];
+      infoElements.forEach((el) => {
+        const block = el.querySelector(".info-block");
+        const content = el.querySelector(".info-content");
 
-        if (!block || !content) return;
+        if (block && content) {
+          applyBlockReveal(block, content, "-=0.2", tlHeader);
+        }
+      });
 
-        const tlRow = gsap.timeline({
-          scrollTrigger: {
-            trigger: el,
-            scroller: index === 0 ? window : "#tracks-scroller",
-            start: "top 95%",
-            once: true,
-          },
-        });
-        tlRow
-          .set(block, { transformOrigin: "left" })
-          .to(block, { scaleX: 1, duration: 0.3, ease: "power3.inOut" })
-          .set(content, { opacity: 1 })
-          .set(block, { transformOrigin: "right" })
-          .to(block, { scaleX: 0, duration: 0.3, ease: "power3.inOut" });
+      // --- TRACK LIST ROWS (Linked entirely to the main screen trigger) ---
+      const listElements = gsap.utils.toArray(".list-reveal") as HTMLElement[];
+      listElements.forEach((el, index) => {
+        const block = el.querySelector(".list-block");
+        const content = el.querySelector(".list-content");
+
+        if (block && content) {
+          // By linking ALL 22 items directly to tlHeader with a "-=0.7" overlap,
+          // it creates one massive, uninterrupted waterfall cascade triggered
+          // exactly when the Tracks section enters the main screen!
+          applyBlockReveal(
+            block,
+            content,
+            index === 0 ? "-=0.2" : "-=0.7",
+            tlHeader,
+          );
+        }
       });
     },
     { scope: containerRef },
@@ -349,7 +363,7 @@ export default function Tracks() {
     <div
       id="tracks"
       ref={containerRef}
-      className="page-content pt-[120px] pb-[80px] min-h-screen bg-transparent text-white"
+      className="page-content pt-[80px] pb-[80px] min-h-screen bg-transparent text-white"
     >
       <style>
         {`
@@ -360,21 +374,27 @@ export default function Tracks() {
 
       <div className="w-full max-w-[1600px] mx-auto px-0 md:px-6">
         {/* HEADER */}
+        {/* HEADER */}
         <div
           ref={headerRef}
           className="mb-10 relative flex flex-col px-6 md:px-0"
         >
-          <div className="relative w-fit mx-auto mb-4 overflow-hidden">
-            <h1
-              ref={titleRef}
-              className="page-title font-akira text-[3rem] md:text-[5rem] text-center text-white uppercase tracking-[2px] opacity-0"
-            >
-              F1 2020 Tracks
-            </h1>
-            <div
-              ref={blockRef}
-              className="absolute top-0 left-0 w-full h-full bg-[#e10600] origin-left scale-x-0 z-10"
-            ></div>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-4">
+            {/* The parent container MUST have overflow-hidden to hide the sliding box */}
+            <div className="relative inline-block overflow-hidden pb-1">
+              <div ref={titleRef} className="relative opacity-0">
+                <h1 className="relative page-title font-akira text-4xl md:text-6xl lg:text-[5rem] xl:text-[6rem] text-white uppercase tracking-[2px] leading-tight z-10">
+                  TRACKS
+                </h1>
+              </div>
+
+              {/* THE FOOLPROOF RED BLOCK */}
+              <div
+                ref={blockRef}
+                className="absolute top-0 left-0 h-full bg-[#e10600] z-20"
+                style={{ width: "0%" }}
+              ></div>
+            </div>
           </div>
           <div className="relative w-full h-[24px]">
             <div className="absolute bottom-0 left-0 w-[calc(100%-15px)] h-[18px] skew-x-[-30deg] origin-bottom-right">
@@ -427,85 +447,120 @@ export default function Tracks() {
             <div className="relative z-10 flex flex-col lg:flex-row justify-between w-full h-full pointer-events-none">
               {/* TOP LEFT: Flat HUD Stats */}
               <div className="flex flex-col gap-6 w-full lg:w-1/2 pointer-events-auto mb-10 lg:mb-0">
-                <div>
-                  <h3 className="font-akira text-2xl lg:text-4xl text-white uppercase tracking-wider mb-2">
-                    {selectedTrack.name.replace(" GP", "")}
-                  </h3>
-                  <p className="font-inter text-white/60 font-bold tracking-[2px] uppercase text-sm">
-                    {selectedTrack.circuit}
-                  </p>
+                {/* Reveal Block 1: Track Name */}
+                <div className="info-reveal relative overflow-hidden pb-1 w-fit">
+                  <div className="info-content opacity-0">
+                    <h3 className="font-akira text-2xl lg:text-4xl text-white uppercase tracking-wider mb-2">
+                      {selectedTrack.name.replace(" GP", "")}
+                    </h3>
+                    <p className="font-inter text-white/60 font-bold tracking-[2px] uppercase text-sm">
+                      {selectedTrack.circuit}
+                    </p>
+                  </div>
+                  <div
+                    className="info-block absolute top-0 left-0 h-full bg-[#e10600] z-20"
+                    style={{ width: "0%" }}
+                  ></div>
                 </div>
 
-                <div className="flex gap-8 border-l-2 border-[#e10600] pl-4">
-                  <div className="flex flex-col">
-                    <span className="text-white/40 font-inter text-[10px] uppercase tracking-widest mb-1">
-                      City
-                    </span>
-                    <span className="text-white font-bold text-xl uppercase font-orbitron">
-                      {selectedTrack.location}
-                    </span>
+                {/* Reveal Block 2: Track Stats */}
+                <div className="info-reveal relative overflow-hidden py-1 w-fit">
+                  <div className="info-content opacity-0 flex gap-8 border-l-2 border-[#e10600] pl-4">
+                    <div className="flex flex-col">
+                      <span className="text-white/40 font-inter text-[10px] uppercase tracking-widest mb-1">
+                        City
+                      </span>
+                      <span className="text-white font-bold text-xl uppercase font-orbitron">
+                        {selectedTrack.location}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-white/40 font-inter text-[10px] uppercase tracking-widest mb-1">
+                        Season
+                      </span>
+                      <span className="text-white font-bold text-xl uppercase font-orbitron">
+                        2020
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-white/40 font-inter text-[10px] uppercase tracking-widest mb-1">
-                      Season
-                    </span>
-                    <span className="text-white font-bold text-xl uppercase font-orbitron">
-                      2020
-                    </span>
-                  </div>
+                  <div
+                    className="info-block absolute top-0 left-0 h-full bg-[#e10600] z-20"
+                    style={{ width: "0%" }}
+                  ></div>
                 </div>
               </div>
 
-              {/* TOP RIGHT: Floating Scroll List (Made smaller in width) */}
-              <div className="w-full lg:w-[220px] xl:w-[260px] flex flex-col pointer-events-auto z-20">
-                {/* List Header */}
-                <div className="pb-3 mb-2 border-b border-white/20 flex justify-between items-end">
-                  <span className="text-white/50 font-inter tracking-widest text-[10px] uppercase font-bold">
-                    Select Circuit
-                  </span>
-                  <span className="text-[#e10600] font-orbitron text-xs font-bold">
-                    22 RNDS
-                  </span>
+              {/* TOP RIGHT: Floating Scroll List */}
+              <div className="w-full lg:w-[240px] xl:w-[280px] flex flex-col pointer-events-auto z-20">
+                {/* List Header - Normal HUD reveal */}
+                <div className="info-reveal relative overflow-hidden pb-3 mb-2 border-b border-white/20 w-full">
+                  <div className="info-content opacity-0 flex justify-between items-end w-full">
+                    <span className="text-white/50 font-inter tracking-widest text-[12px] uppercase font-bold">
+                      Select Circuit
+                    </span>
+                    <span className="text-[#e10600] font-orbitron text-xs font-bold">
+                      22 RNDS
+                    </span>
+                  </div>
+                  <div
+                    className="info-block absolute top-0 left-0 h-full bg-[#e10600] z-30 pointer-events-none"
+                    style={{ width: "0%" }}
+                  ></div>
                 </div>
 
                 {/* Scrollable Area */}
                 <div
                   id="tracks-scroller"
                   ref={scrollerRef}
-                  className="flex flex-col max-h-[200px] lg:max-h-[30vh] overflow-hidden pr-1"
+                  className="flex flex-col max-h-[260px] lg:max-h-[34vh] overflow-y-auto hide-scrollbar pr-1"
                 >
                   {tracksData.map((track, index) => {
                     const isActive = selectedTrack.id === track.id;
                     const idx = (index + 1).toString().padStart(2, "0");
 
                     return (
+                      /* NEW: Individual Row Wrapper (.list-reveal) */
                       <div
                         key={track.id}
-                        onClick={() => setSelectedTrack(track)}
-                        // Added explicit background highlight when active
-                        className={`group relative cursor-pointer flex items-center py-2 lg:py-3 px-2 transition-all duration-200 border-b border-white/5 shrink-0
-                        ${isActive ? "text-white bg-white/5" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+                        className="list-reveal relative overflow-hidden shrink-0"
                       >
-                        {/* Status Indicator / Line */}
                         <div
-                          className={`absolute left-0 top-0 bottom-0 w-1 transition-colors duration-200 ${isActive ? "bg-[#e10600]" : "bg-transparent group-hover:bg-[#e10600]/50"}`}
-                        />
+                          onClick={() => setSelectedTrack(track)}
+                          className={`list-content opacity-0 group relative cursor-pointer flex items-center py-2 lg:py-3 px-2 transition-all duration-200 border-b border-white/5
+                          ${isActive ? "text-white bg-white/5" : "text-white/40 hover:text-white hover:bg-white/5"}`}
+                        >
+                          {/* Status Indicator / Line */}
+                          <div
+                            className={`absolute left-0 top-0 bottom-0 w-1 transition-colors duration-200 ${isActive ? "bg-[#e10600]" : "bg-transparent group-hover:bg-[#e10600]/50"}`}
+                          />
 
-                        {/* Name & Round */}
-                        <div className="flex-1 pl-3 pr-2 flex justify-between items-center">
-                          <span className="font-orbitron font-bold uppercase text-xs tracking-wider truncate block">
-                            {track.name.replace(" GP", "")}
-                          </span>
-                          <span
-                            className={`font-orbitron text-[10px] italic ${isActive ? "text-white/80" : "text-white/20"}`}
-                          >
-                            R{idx}
-                          </span>
+                          {/* Name & Round */}
+                          <div className="flex-1 pl-3 pr-2 flex justify-between items-center">
+                            <span className="font-orbitron font-bold uppercase tracking-wider truncate block">
+                              {track.name.replace(" GP", "")}
+                            </span>
+                            <span
+                              className={`font-orbitron text-[12px] ${isActive ? "text-white/80" : "text-white/20"}`}
+                            >
+                              R{idx}
+                            </span>
+                          </div>
                         </div>
+
+                        {/* NEW: Individual Red Sweep Block (.list-block) */}
+                        <div
+                          className="list-block absolute top-0 left-0 h-full bg-[#e10600] z-30 pointer-events-none"
+                          style={{ width: "0%" }}
+                        ></div>
                       </div>
                     );
                   })}
                 </div>
+
+                <div
+                  className="info-block absolute top-0 left-0 h-full bg-[#e10600] z-30"
+                  style={{ width: "0%" }}
+                ></div>
               </div>
             </div>
           </div>

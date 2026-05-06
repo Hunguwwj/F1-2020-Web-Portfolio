@@ -100,21 +100,35 @@ export default function Championships() {
 
   const getDriverImage = (driverName: string) => {
     const map: Record<string, string> = {
-      "Alexander Albon": "alexander albon.jpg",
-      "Carlos Sainz": "carlos sains.jpg",
-      "Charles Leclerc": "charles leclerc.jpg",
+      "Lewis Hamilton": "lewis hamilton.png",
+      "Valtteri Bottas": "valtteri bottas.png",
+      "Max Verstappen": "max verstapen.png", // Matches your filename spelling
+      "Sergio Perez": "sergio perez.png",
       "Daniel Ricciardo": "daniel ricciardo.png",
-      "Lando Norris": "lando norris.jpg",
-      "Lewis Hamilton": "lewis hamilton.jpg",
-      "Max Verstappen": "max verstapen.jpg",
-      "Pierre Gasly": "pierre gasly.jpg",
-      "Sergio Perez": "sergio perez.jpg",
-      "Valtteri Bottas": "valtteri bottas.jpg",
+      "Carlos Sainz": "carlos sains.png", // Matches your filename spelling
+      "Alexander Albon": "alexander albon.png",
+      "Charles Leclerc": "charles leclerc.png",
+      "Lando Norris": "lando norris.png",
+      "Pierre Gasly": "pierre gasly.png",
+      "Lance Stroll": "lance stroll.png",
+      "Esteban Ocon": "esteban ocon.png",
+      "Sebastian Vettel": "sebastian vettel.png",
+      "Daniil Kvyat": "daniil kvyat.png",
+      "Nico Hulkenberg": "nico hulkenberg.png",
+      "Kimi Raikkonen": "kimi raikkonen.png",
+      "Antonio Giovinazzi": "antonio giovinazzi.png",
+      "Romain Grosjean": "romain grosjean.png",
+      "Kevin Magnussen": "kevin magnussen.png",
+      "George Russell": "george russell.png",
+      "Nicholas Latifi": "nicholas latifi.png",
     };
+
     const key = Object.keys(map).find(
       (k) => k.toLowerCase() === driverName.toLowerCase().trim(),
     );
-    return key ? encodeURI(`/driver/${map[key]}`) : `/driver/default.jpg`;
+
+    // Updated to use capital 'Driver' folder path to match your directory
+    return key ? encodeURI(`/Driver/${map[key]}`) : `/Driver/default.png`;
   };
 
   const getRaceFlag = (raceName: string) => {
@@ -684,6 +698,9 @@ export default function Championships() {
               {/* Image Box */}
               <div className="flex-1 flex items-end justify-center relative z-10 ">
                 <img
+                  key={
+                    hoveredDriver.name
+                  } /* THE MAGIC FIX: Forces a complete CSS reset on hover change */
                   src={getDriverImage(hoveredDriver.name)}
                   alt={hoveredDriver.name}
                   className="w-full h-full object-contain object-bottom filter contrast-125 saturate-110"
