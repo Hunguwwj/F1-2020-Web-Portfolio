@@ -1,29 +1,158 @@
+"use client";
+
 import { SceneManager } from "../renders/render";
 import { startMainShow, triggerCameraView } from "../hook/hero-anim";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import type { CSSProperties, RefObject } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { ScrambleTextPlugin, SplitText } from "gsap/all";
 
-import { SplitText } from "gsap/all";
-import { ScrambleTextPlugin } from "gsap/all";
 gsap.registerPlugin(SplitText, ScrambleTextPlugin);
 
-// === DATA HUB ===
-const viewData = {
+/*
+  =========================================================
+  EASY EDIT AREA
+  Khi muốn nhân bản sang xe khác, bạn chủ yếu sửa 3 phần:
+  1. TEAM_MODEL  -> đường dẫn model và ánh sáng
+  2. TEAM_THEME  -> màu nền, màu chữ, màu nút
+  3. VIEW_DATA   -> chữ, vị trí, layout từng góc nhìn
+  =========================================================
+*/
+
+type ViewKey = "side" | "front" | "cockpit";
+type TextEffect = "blink-slide" | "decode-slide" | "float" | "blur";
+type TitleLayer = "behind-car" | "front-car";
+
+type CanvasTheme = {
+  sectionBackground: string;
+  cinematicBar: string;
+
+  // Màu mặc định cho title lớn nếu từng view không tự set titleColor.
+  backgroundTitleColor: string;
+  viewTitleColor: string;
+
+  // Màu chữ phụ: label, line, nút...
+  mainText: string;
+  line: string;
+
+  buttonActiveBg: string;
+  buttonActiveText: string;
+  buttonActiveBorder: string;
+
+  buttonIdleBg: string;
+  buttonIdleText: string;
+  buttonIdleBorder: string;
+};
+
+type TeamModelConfig = {
+  modelPath: string;
+  lightColor: number;
+  lightIntensity: number;
+  ambientLightColor: number;
+  ambientIntensity: number;
+};
+
+type ViewConfig = {
+  title: string;
+  subtitle: string;
+
+  /** Màu title riêng cho từng view. Nếu bỏ trống sẽ lấy màu từ TEAM_THEME. */
+  titleColor?: string;
+
+  /**
+   * Màu subtitle riêng.
+   * Nếu bỏ trống và subtitleUseTitleColor = true, subtitle sẽ cùng màu với title.
+   * Nếu bỏ trống và subtitleUseTitleColor không bật, subtitle sẽ lấy màu mainText.
+   */
+  subtitleColor?: string;
+  subtitleUseTitleColor?: boolean;
+
+  labelLeft: string;
+  labelRight: string;
+  labelColor?: string;
+
+  showLine: boolean;
+  titleLayer: TitleLayer;
+
+  leftLabelClass: string;
+  rightLabelClass: string;
+  titleContainerClass: string;
+  titleClass: string;
+  subtitleClass?: string;
+
+  textEffect: TextEffect;
+  exitAnim: gsap.TweenVars;
+  canvasShift: string;
+};
+
+export type TeamCanvasProps = {
+  /** Đổi nhanh nền/chữ/nút từ page.tsx nếu cần. */
+  theme?: Partial<CanvasTheme>;
+
+  /** Đổi nhanh model từ page.tsx nếu cần. */
+  model?: Partial<TeamModelConfig>;
+
+  /** View đầu tiên khi mở section. Mặc định là side. */
+  initialView?: ViewKey;
+};
+
+// =========================================================
+// 1) MODEL: đổi đường dẫn model tại đây khi nhân bản xe khác.
+// =========================================================
+const TEAM_MODEL: TeamModelConfig = {
+    modelPath: "../models/ferrari",
+    lightColor: 0xffb3ad,
+    lightIntensity: 4.3,
+    ambientLightColor: 0xffffff,
+    ambientIntensity: 0.92,
+};
+
+// =========================================================
+// 2) THEME: toàn bộ màu chính của section nằm ở đây.
+// =========================================================
+const TEAM_THEME: CanvasTheme = {
+  sectionBackground:
+      "linear-gradient(180deg, #E10600 0%, #C90000 52%, #7A0000 100%)",
+  cinematicBar: "#FFFFFF",
+
+  backgroundTitleColor: "rgba(255, 235, 235, 0.36)",
+  viewTitleColor: "#FFFFFF",
+
+  mainText: "#FFFFFF",
+  line: "#FFFFFF",
+
+  buttonActiveBg: "#FFFFFF",
+  buttonActiveText: "#111111",
+  buttonActiveBorder: "#FFFFFF",
+
+  buttonIdleBg: "rgba(255, 255, 255, 0.08)",
+  buttonIdleText: "#FFFFFF",
+  buttonIdleBorder: "rgba(255, 255, 255, 0.42)",
+};
+
+// =========================================================
+// 3) VIEW DATA: sửa nội dung, màu chữ, vị trí từng góc nhìn.
+// =========================================================
+const VIEW_DATA: Record<ViewKey, ViewConfig> = {
   side: {
     title: "FERRARI",
-    subtitle: "SCUDERIA · THE PRANCING HORSE",
-    labelLeft: "EST. 1929",
+    subtitle: "SCUDERIA FERRARI",
+    titleColor: "rgba(255, 235, 235, 0.36)",
+    subtitleUseTitleColor: false,
+
+    labelLeft: "LEGACY SINCE 1929",
     labelRight: "MARANELLO, ITALY",
-    hasLine: true,
-    titleBehindCar: true, // <--- THE FIX: This text goes BEHIND the car
-    labelRightClass: "absolute top-[14vh] left-[5vw] overflow-hidden pb-2 pr-4",
-    labelLeftClass: "absolute top-[14vh] right-[5vw] overflow-hidden pb-2 pr-4",
+
+    showLine: true,
+    titleLayer: "behind-car",
+
+    leftLabelClass: "absolute top-[14vh] left-[5vw] overflow-hidden pb-2 pr-4",
+    rightLabelClass: "absolute top-[14vh] right-[5vw] overflow-hidden pb-2 pr-4",
     titleContainerClass:
       "absolute inset-0 flex flex-col items-center justify-center font-akira",
-    // Moved the heavy uppercase styling here so it doesn't break the cockpit quote!
-    titleClass:
-      "font-black uppercase tracking-wide leading-none text-[15vw] text-white/90",
+    titleClass: "font-black uppercase tracking-wide leading-none text-[15vw]",
+
     textEffect: "blink-slide",
     exitAnim: {
       y: 220,
@@ -33,36 +162,56 @@ const viewData = {
     },
     canvasShift: "0vw",
   },
+
   front: {
     title: "SF1000",
-    subtitle: "The car that marked Ferrari's 1000th Grand Prix.",
-    labelLeft: "Chassis",
+    subtitle: "Scarlet Legacy",
+    titleColor: "#FFFFFF",
+
+    // Đây là dòng bạn cần: subtitle sẽ tự cùng màu với title SF1000.
+    subtitleUseTitleColor: true,
+
+    labelLeft: "CHASSIS",
     labelRight: "2020",
-    hasLine: false,
-    titleBehindCar: true,
-    labelRightClass: "absolute top-[8vh] left-[5vw] overflow-hidden pb-2 pr-4",
-    labelLeftClass: "absolute top-[8vh] right-[5vw] overflow-hidden pb-2 pr-4",
+
+    showLine: false,
+    titleLayer: "behind-car",
+
+    leftLabelClass: "absolute top-[8vh] left-[5vw] overflow-hidden pb-2 pr-4",
+    rightLabelClass: "absolute top-[8vh] right-[5vw] overflow-hidden pb-2 pr-4",
     titleContainerClass:
       "absolute top-[6vh] right-[7vw] text-right flex flex-col items-end",
     titleClass:
-      "font-black uppercase tracking-tighter leading-none text-[14vw] font-akira",
+      "font-akira text-[13vw] font-black uppercase leading-none tracking-[0.04em]",
+
     textEffect: "decode-slide",
-    exitAnim: { y: 220, duration: 0.5, stagger: 0.08, ease: "power2.inOut" },
+    exitAnim: {
+      y: 220,
+      duration: 0.5,
+      stagger: 0.08,
+      ease: "power2.inOut",
+    },
     canvasShift: "-15vw",
   },
+
   cockpit: {
-    title: '"AERODYNAMICS ARE FOR PEOPLE WHO CAN\'T BUILD ENGINES."',
+    title: '"RACING IS IN OUR BLOOD."',
     subtitle: "ENZO FERRARI",
+    titleColor: "#FFFFFF",
+    subtitleUseTitleColor: true,
+
     labelLeft: "",
     labelRight: "",
-    hasLine: false,
-    titleBehindCar: false,
-    labelRightClass: "absolute top-[12vh] left-[9vw] overflow-hidden pb-2 pr-4",
-    labelLeftClass: "absolute top-[12vh] right-[5vw] overflow-hidden pb-2 pr-4",
+
+    showLine: false,
+    titleLayer: "front-car",
+
+    leftLabelClass: "absolute top-[12vh] left-[9vw] overflow-hidden pb-2 pr-4",
+    rightLabelClass: "absolute top-[12vh] right-[5vw] overflow-hidden pb-2 pr-4",
     titleContainerClass:
-      "absolute top-[35vh] w-full flex justify-center flex-col items-center",
-    titleClass:
-      "text-3xl md:text-5xl text-white text-center max-w-5xl leading-tight font-mono",
+      "absolute top-[35vh] w-full flex flex-col items-center justify-center",
+    titleClass: "max-w-5xl text-center font-mono text-3xl leading-tight md:text-5xl",
+
     textEffect: "blur",
     exitAnim: {
       scale: 1.05,
@@ -75,9 +224,253 @@ const viewData = {
   },
 };
 
-let cachedEngine: SceneManager | null = null;
+const VIEW_ORDER: ViewKey[] = ["side", "front", "cockpit"];
 
-export default function FerrariCanvas() {
+const BASE_LABEL_CLASS =
+  "text-extra font-akira text-[11px] uppercase leading-none tracking-[0.24em] opacity-0";
+
+const BASE_SUBTITLE_CLASS =
+  "text-extra font-akira text-[12px] leading-[1.2] tracking-[0.24em] opacity-0";
+
+const BASE_BUTTON_CLASS =
+  "flex h-12 w-12 cursor-pointer items-center justify-center border font-mono text-sm font-bold backdrop-blur-sm transition-all duration-500 hover:scale-110";
+
+// Cache theo modelPath để nhân bản nhiều xe không bị load engine lặp lại.
+const engineCache = new Map<string, SceneManager>();
+
+function mergeModelConfig(model?: Partial<TeamModelConfig>): TeamModelConfig {
+  return { ...TEAM_MODEL, ...model };
+}
+
+function mergeTheme(theme?: Partial<CanvasTheme>): CanvasTheme {
+  return { ...TEAM_THEME, ...theme };
+}
+
+function getTitleColor(view: ViewConfig, theme: CanvasTheme) {
+  return (
+    view.titleColor ??
+    (view.titleLayer === "behind-car"
+      ? theme.backgroundTitleColor
+      : theme.viewTitleColor)
+  );
+}
+
+function getSubtitleColor(view: ViewConfig, theme: CanvasTheme) {
+  if (view.subtitleColor) return view.subtitleColor;
+  if (view.subtitleUseTitleColor) return getTitleColor(view, theme);
+  return theme.mainText;
+}
+
+function getLabelColor(view: ViewConfig, theme: CanvasTheme) {
+  return view.labelColor ?? theme.mainText;
+}
+
+type TextLayerProps = {
+  layer: TitleLayer;
+  activeView: ViewKey;
+  titleRef: RefObject<HTMLHeadingElement | null>;
+  theme: CanvasTheme;
+};
+
+function TextLayer({ layer, activeView, titleRef, theme }: TextLayerProps) {
+  const data = VIEW_DATA[activeView];
+  const isTitleOnThisLayer = data.titleLayer === layer;
+  const shouldShowExtraText = layer === "front-car";
+  const hiddenTitleClass = isTitleOnThisLayer
+    ? "opacity-0"
+    : "opacity-0 pointer-events-none select-none";
+
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      <div className={data.titleContainerClass}>
+        <div className="overflow-hidden pb-2 pl-10 pr-10">
+          <h1
+            ref={isTitleOnThisLayer ? titleRef : null}
+            key={`${layer}-${activeView}`}
+            className={`${data.titleClass} ${hiddenTitleClass}`}
+            style={{ color: getTitleColor(data, theme) }}
+          >
+            {data.title}
+          </h1>
+        </div>
+
+        {shouldShowExtraText && data.showLine && (
+          <div className="mb-4 mt-2 flex w-full max-w-[45vw] justify-center overflow-hidden">
+            <div
+              className="decorative-line h-0.5 w-full origin-center opacity-0 will-change-transform"
+              style={{ backgroundColor: theme.line }}
+            />
+          </div>
+        )}
+
+        {shouldShowExtraText && data.subtitle && (
+          <div className="mt-0 overflow-hidden pl-10 pr-10 text-center">
+            <p
+              className={data.subtitleClass ?? BASE_SUBTITLE_CLASS}
+              style={{ color: getSubtitleColor(data, theme) }}
+            >
+              {data.subtitle}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function getAnimatedExtras(container: HTMLElement) {
+  return Array.from(container.querySelectorAll(".text-extra"));
+}
+
+function getAnimatedLine(container: HTMLElement) {
+  return container.querySelector(".decorative-line");
+}
+
+function resetAnimatedElements(elements: Element[]) {
+  gsap.killTweensOf(elements);
+  gsap.set(elements, {
+    opacity: 1,
+    x: 0,
+    y: 0,
+    scale: 1,
+    filter: "blur(0px)",
+  });
+}
+
+function animateLine(lineEl: Element | null) {
+  if (!lineEl) return;
+
+  gsap.fromTo(
+    lineEl,
+    { scaleX: 0, opacity: 0 },
+    {
+      scaleX: 1,
+      opacity: 1,
+      duration: 1.2,
+      ease: "power3.out",
+      delay: 0.3,
+    },
+  );
+}
+
+function animateExtras(extras: Element[], textEffect: TextEffect) {
+  if (textEffect === "decode-slide" || extras.length === 0) return;
+
+  gsap.fromTo(
+    extras,
+    { opacity: 0, y: 15 },
+    {
+      opacity: 1,
+      y: 0,
+      duration: 0.8,
+      stagger: 0.1,
+      ease: "power2.out",
+      delay: 0.4,
+    },
+  );
+}
+
+function animateTitleByEffect(
+  titleEl: HTMLHeadingElement,
+  extras: Element[],
+  textEffect: TextEffect,
+) {
+  const splitInstances: SplitText[] = [];
+
+  if (textEffect === "blink-slide") {
+    gsap.fromTo(
+      titleEl,
+      { x: -150, opacity: 0 },
+      { x: 0, opacity: 1, duration: 1.2, ease: "power3.out" },
+    );
+
+    const split = new SplitText(titleEl, { type: "chars" });
+    splitInstances.push(split);
+
+    gsap.set(split.chars, { opacity: 0 });
+    gsap.to(split.chars, {
+      keyframes: [
+        { opacity: 1, duration: 0.05 },
+        { opacity: 0, duration: 0.05 },
+        { opacity: 1, duration: 0.05 },
+        { opacity: 0.2, duration: 0.05 },
+        { opacity: 1, duration: 0.2 },
+      ],
+      stagger: 0.08,
+      ease: "none",
+    });
+  }
+
+  if (textEffect === "decode-slide") {
+    const allTextElements = [titleEl, ...extras];
+
+    allTextElements.forEach((element, index) => {
+      const textNode = element as HTMLElement;
+
+      gsap.fromTo(
+        textNode,
+        { y: -220, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 1.2,
+          ease: "power3.out",
+          delay: index * 0.15,
+        },
+      );
+
+      const split = new SplitText(textNode, { type: "chars" });
+      splitInstances.push(split);
+
+      gsap.to(split.chars, {
+        duration: 1.2,
+        scrambleText: {
+          text: "{original}",
+          chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+          speed: 1,
+        },
+        delay: index * 0.15,
+      });
+    });
+  }
+
+  if (textEffect === "float") {
+    gsap.set(titleEl, { opacity: 1 });
+
+    const split = new SplitText(titleEl, { type: "chars" });
+    splitInstances.push(split);
+
+    gsap.from(split.chars, {
+      yPercent: 150,
+      opacity: 0,
+      duration: 1,
+      stagger: 0.05,
+      ease: "power2.out",
+    });
+  }
+
+  if (textEffect === "blur") {
+    gsap.fromTo(
+      titleEl,
+      { scale: 0.95, filter: "blur(10px)", opacity: 0 },
+      {
+        scale: 1,
+        filter: "blur(0px)",
+        opacity: 1,
+        duration: 0.8,
+        ease: "power2.out",
+      },
+    );
+  }
+
+  return splitInstances;
+}
+
+export default function FerrariCanvas({
+  theme,
+  model,
+  initialView = "side",
+}: TeamCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -87,191 +480,97 @@ export default function FerrariCanvas() {
   const bottomBarRef = useRef<HTMLDivElement>(null);
 
   const engineRef = useRef<SceneManager | null>(null);
-  const [activeView, setActiveView] = useState<"side" | "front" | "cockpit">(
-    "side",
-  );
+  const [activeView, setActiveView] = useState<ViewKey>(initialView);
   const [isEngineReady, setIsEngineReady] = useState(false);
 
-  // === HOOK 1: ENGINE SETUP ===
-  useGSAP(() => {
-    let isCancelled = false;
+  const uiTheme = useMemo(() => mergeTheme(theme), [theme]);
+  const modelConfig = useMemo(() => mergeModelConfig(model), [model]);
+  const currentView = VIEW_DATA[activeView];
 
-    const setup = async () => {
-      if (!containerRef.current) return;
+  // === HOOK 1: setup 3D engine ===
+// === HOOK 1: setup 3D engine ===
+  useGSAP(
+    () => {
+      let isCancelled = false;
 
-      if (!cachedEngine) {
-        cachedEngine = new SceneManager(containerRef.current, {
-          modelPath: "../models/ferrari", // Point to the Ferrari model
-          lightColor: 0xffffff, // Slightly warm light
-          lightIntensity: 3, // Bright main light
-          ambientLightColor: 0xffdddd,
-          ambientIntensity: 0.4, // Keep shadows dark
-        });
-        engineRef.current = cachedEngine;
+      const setup = async () => {
+        if (!containerRef.current) return;
 
-        await cachedEngine.init();
-        cachedEngine.precompileShaders();
-        cachedEngine.warmUpGPU();
-      } else {
-        engineRef.current = cachedEngine;
-        containerRef.current.appendChild(cachedEngine.renderer.domElement);
-      }
+        // THE FIX: Always create a fresh instance. Do not cache the SceneManager globally!
+        const engine = new SceneManager(containerRef.current, modelConfig);
+        engineRef.current = engine;
 
-      requestAnimationFrame(() => {
+        await engine.init();
+        engine.precompileShaders();
+        engine.warmUpGPU();
+
         requestAnimationFrame(() => {
-          if (!isCancelled && cachedEngine) {
-            startMainShow(
-              cachedEngine,
-              topBarRef.current,
-              bottomBarRef.current,
-              () => setIsEngineReady(true),
-            );
-          }
+          requestAnimationFrame(() => {
+            if (!isCancelled && engineRef.current) {
+              startMainShow(
+                engineRef.current,
+                topBarRef.current,
+                bottomBarRef.current,
+                () => setIsEngineReady(true),
+              );
+            }
+          });
         });
-      });
-    };
-    setup();
+      };
 
-    return () => {
-      isCancelled = true;
-      if (cachedEngine && containerRef.current) {
-        if (containerRef.current.contains(cachedEngine.renderer.domElement)) {
-          containerRef.current.removeChild(cachedEngine.renderer.domElement);
+      setup();
+
+      return () => {
+        isCancelled = true;
+        const engine = engineRef.current;
+
+        if (engine && containerRef.current) {
+          const canvas = engine.renderer.domElement;
+
+          if (containerRef.current.contains(canvas)) {
+            containerRef.current.removeChild(canvas);
+          }
+          
+          // THE MAGIC FIX: Force the GPU to dump the memory when you leave the page
+          if (engine.renderer && typeof engine.renderer.dispose === 'function') {
+             engine.renderer.dispose();
+          }
+          // Also call any custom destroy() method you might have built inside SceneManager!
         }
-      }
-    };
-  });
+      };
+    },
+    // ...
+    {
+      dependencies: [
+        modelConfig.modelPath,
+        modelConfig.lightColor,
+        modelConfig.lightIntensity,
+        modelConfig.ambientLightColor,
+        modelConfig.ambientIntensity,
+      ],
+    },
+  );
 
-  // === HOOK 2: TEXT ENTER ANIMATIONS ===
+  // === HOOK 2: text enter animations ===
   useGSAP(
     () => {
       if (!isEngineReady || !titleRef.current || !triggerRef.current) return;
 
-      const currentData = viewData[activeView];
       const titleEl = titleRef.current;
       const uiContainer = triggerRef.current;
+      const extras = getAnimatedExtras(uiContainer);
+      const lineEl = getAnimatedLine(uiContainer);
+      const allElements = [titleEl, ...extras, lineEl].filter(Boolean) as Element[];
 
-      const extras = uiContainer.querySelectorAll(".text-extra");
-      const lineEl = uiContainer.querySelector(".decorative-line");
-      let splitInstances: SplitText[] = [];
+      resetAnimatedElements(allElements);
+      animateLine(lineEl);
+      animateExtras(extras, currentView.textEffect);
 
-      // === THE FIX: Reset all leftover animations from the previous view ===
-      const allElements = [titleEl, ...Array.from(extras), lineEl].filter(
-        Boolean,
+      const splitInstances = animateTitleByEffect(
+        titleEl,
+        extras,
+        currentView.textEffect,
       );
-      gsap.set(allElements, {
-        opacity: 1,
-        x: 0,
-        y: 0,
-        scale: 1,
-        filter: "blur(0px)", // <--- This forces the blur to disappear!
-      });
-
-      if (lineEl) {
-        gsap.fromTo(
-          lineEl,
-          { scaleX: 0, opacity: 0 },
-          {
-            scaleX: 1,
-            opacity: 1,
-            duration: 1.2,
-            ease: "power3.out",
-            delay: 0.3,
-          },
-        );
-      }
-      if (currentData.textEffect !== "decode-slide" && extras.length > 0) {
-        gsap.fromTo(
-          extras,
-          { opacity: 0, y: 15 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.8,
-            stagger: 0.1,
-            ease: "power2.out",
-            delay: 0.4,
-          },
-        );
-      }
-
-      if (currentData.textEffect === "blink-slide") {
-        gsap.fromTo(
-          titleEl,
-          { x: -150, opacity: 0 },
-          { x: 0, opacity: 1, duration: 1.2, ease: "power3.out" },
-        );
-
-        const split = new SplitText(titleEl, { type: "chars" });
-        splitInstances.push(split);
-
-        gsap.set(split.chars, { opacity: 0 });
-        gsap.to(split.chars, {
-          keyframes: [
-            { opacity: 1, duration: 0.05 },
-            { opacity: 0, duration: 0.05 },
-            { opacity: 1, duration: 0.05 },
-            { opacity: 0.2, duration: 0.05 },
-            { opacity: 1, duration: 0.2 },
-          ],
-          stagger: 0.08,
-          ease: "none",
-        });
-      } else if (currentData.textEffect === "decode-slide") {
-        const allTextElements = [titleEl, ...Array.from(extras)];
-
-        allTextElements.forEach((el, index) => {
-          const textNode = el as HTMLElement;
-
-          gsap.fromTo(
-            textNode,
-            { y: -220, opacity: 0 },
-            {
-              y: 0,
-              opacity: 1,
-              duration: 1.2,
-              ease: "power3.out",
-              delay: index * 0.15,
-            },
-          );
-
-          const split = new SplitText(textNode, { type: "chars" });
-          splitInstances.push(split);
-
-          gsap.to(split.chars, {
-            duration: 1.2,
-            scrambleText: {
-              text: "{original}",
-              chars: "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-              speed: 1,
-            },
-            delay: index * 0.15,
-          });
-        });
-      } else if (currentData.textEffect === "float") {
-        gsap.set(titleEl, { opacity: 1 });
-        const split = new SplitText(titleEl, { type: "chars" });
-        splitInstances.push(split);
-        gsap.from(split.chars, {
-          yPercent: 150,
-          opacity: 0,
-          duration: 1,
-          stagger: 0.05,
-          ease: "power2.out",
-        });
-      } else if (currentData.textEffect === "blur") {
-        gsap.fromTo(
-          titleEl,
-          { scale: 0.95, filter: "blur(10px)", opacity: 0 },
-          {
-            scale: 1,
-            filter: "blur(0px)",
-            opacity: 1,
-            duration: 0.8,
-            ease: "power2.out",
-          },
-        );
-      }
 
       return () => {
         splitInstances.forEach((split) => split.revert());
@@ -280,14 +579,15 @@ export default function FerrariCanvas() {
     { dependencies: [activeView, isEngineReady] },
   );
 
-  const handleViewChange = (view: "side" | "front" | "cockpit") => {
+  const handleViewChange = (view: ViewKey) => {
     if (
       activeView === view ||
       !engineRef.current ||
       !isEngineReady ||
       !triggerRef.current
-    )
+    ) {
       return;
+    }
 
     triggerCameraView(
       engineRef.current,
@@ -296,147 +596,131 @@ export default function FerrariCanvas() {
       bottomBarRef.current,
       barsContainerRef.current,
     );
+
     gsap.to(containerRef.current, {
-      x: viewData[view].canvasShift,
+      x: VIEW_DATA[view].canvasShift,
       duration: 1.8,
       ease: "power3.inOut",
     });
 
     const exitTargets = [
       titleRef.current,
-      ...Array.from(triggerRef.current.querySelectorAll(".text-extra")),
-      ...Array.from(triggerRef.current.querySelectorAll(".decorative-line")),
-    ].filter(Boolean);
+      ...getAnimatedExtras(triggerRef.current),
+      getAnimatedLine(triggerRef.current),
+    ].filter(Boolean) as Element[];
 
     gsap.to(exitTargets, {
-      ...viewData[activeView].exitAnim,
-      onComplete: () => {
-        setActiveView(view);
-      },
+      ...VIEW_DATA[activeView].exitAnim,
+      onComplete: () => setActiveView(view),
     });
+  };
+
+  const rootStyle: CSSProperties = {
+    background: uiTheme.sectionBackground,
   };
 
   return (
     <div
       ref={triggerRef}
-      className="w-full bg-[#c70e0e] relative h-screen overflow-hidden"
+      className="relative h-screen w-full overflow-hidden"
+      style={rootStyle}
     >
-      {/* 1. CINEMATIC BARS (Z-10) */}
-      <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+      {/* 1. Cinematic bars */}
+      <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
         <div
           ref={barsContainerRef}
-          className="absolute top-1/2 left-1/2 w-0 h-0"
+          className="absolute left-1/2 top-1/2 h-0 w-0"
         >
           <div
             ref={topBarRef}
-            className="absolute bottom-0 left-[-150vmax] w-[300vmax] h-[300vmax] bg-white shadow-2xl"
-            style={{ transform: "translateY(-50vh)" }}
+            className="absolute bottom-0 left-[-150vmax] h-[300vmax] w-[300vmax] shadow-2xl"
+            style={{
+              transform: "translateY(-50vh)",
+              backgroundColor: uiTheme.cinematicBar,
+            }}
           />
           <div
             ref={bottomBarRef}
-            className="absolute top-0 left-[-150vmax] w-[300vmax] h-[300vmax] bg-white shadow-2xl"
-            style={{ transform: "translateY(50vh)" }}
+            className="absolute left-[-150vmax] top-0 h-[300vmax] w-[300vmax] shadow-2xl"
+            style={{
+              transform: "translateY(50vh)",
+              backgroundColor: uiTheme.cinematicBar,
+            }}
           />
         </div>
       </div>
 
-      {/* 2. BACKGROUND TEXT LAYER (Z-15) -> Sits BEHIND the Car */}
-      <div className="absolute inset-0 z-15 pointer-events-none">
-        <div className={viewData[activeView].titleContainerClass}>
-          <div className="overflow-hidden pb-2 pr-10 pl-10">
-            {/* GSAP attaches to this <h1> ONLY if titleBehindCar is TRUE */}
-            <h1
-              ref={viewData[activeView].titleBehindCar ? titleRef : null}
-              key={`bg-${activeView}`}
-              className={`${viewData[activeView].titleClass} ${!viewData[activeView].titleBehindCar ? "opacity-0 pointer-events-none select-none" : "opacity-0"}`}
-              // THE FIX: Explicitly cast to string
-            >
-              {viewData[activeView].title}
-            </h1>
-          </div>
-
-          {viewData[activeView].hasLine && (
-            <div className="overflow-hidden w-full max-w-[45vw] flex justify-center mt-2 mb-4 opacity-0 pointer-events-none">
-              <div className="h-0.5 w-full" />
-            </div>
-          )}
-          {viewData[activeView].subtitle && (
-            <div className="overflow-hidden mt-0 pr-10 pl-10 text-center opacity-0 pointer-events-none select-none">
-              <p className="font-akira text-[12px] leading-[1.2] tracking-[0.24em]">
-                {viewData[activeView].subtitle}
-              </p>
-            </div>
-          )}
-        </div>
+      {/* 2. Text behind car */}
+      <div className="pointer-events-none absolute inset-0 z-[15]">
+        <TextLayer
+          layer="behind-car"
+          activeView={activeView}
+          titleRef={titleRef}
+          theme={uiTheme}
+        />
       </div>
 
-      {/* 3. 3D CANVAS LAYER (Z-20) -> Sits IN THE MIDDLE */}
+      {/* 3. 3D canvas */}
       <div
         ref={containerRef}
-        className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center will-change-transform"
+        className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center will-change-transform"
       />
 
-      {/* 4. FOREGROUND TEXT LAYER (Z-25) -> Sits IN FRONT of the Car */}
-      <div className="absolute inset-0 z-25 pointer-events-none">
-        {viewData[activeView].labelLeft && (
-          <div className={viewData[activeView].labelRightClass}>
-            <div className="text-extra opacity-0 font-akira text-[11px] uppercase leading-none tracking-[0.24em] text-white">
-              {viewData[activeView].labelLeft}
-            </div>
-          </div>
-        )}
-
-        {viewData[activeView].labelRight && (
-          <div className={viewData[activeView].labelLeftClass}>
-            <div className="text-extra opacity-0 font-akira text-[11px] uppercase leading-none tracking-[0.24em] text-white">
-              {viewData[activeView].labelRight}
-            </div>
-          </div>
-        )}
-
-        <div className={viewData[activeView].titleContainerClass}>
-          <div className="overflow-hidden pb-2 pr-10 pl-10">
-            {/* GSAP attaches to this <h1> ONLY if titleBehindCar is FALSE */}
-            <h1
-              ref={!viewData[activeView].titleBehindCar ? titleRef : null}
-              key={`fg-${activeView}`}
-              className={`${viewData[activeView].titleClass} ${viewData[activeView].titleBehindCar ? "opacity-0 pointer-events-none select-none" : "opacity-0"}`}
-              // THE FIX: Explicitly cast to string
+      {/* 4. Text in front of car */}
+      <div className="pointer-events-none absolute inset-0 z-[25]">
+        {currentView.labelLeft && (
+          <div className={currentView.leftLabelClass}>
+            <div
+              className={BASE_LABEL_CLASS}
+              style={{ color: getLabelColor(currentView, uiTheme) }}
             >
-              {viewData[activeView].title}
-            </h1>
+              {currentView.labelLeft}
+            </div>
           </div>
+        )}
 
-          {viewData[activeView].hasLine && (
-            <div className="overflow-hidden w-full max-w-[45vw] flex justify-center mt-2 mb-4">
-              <div className="decorative-line opacity-0 h-0.5 w-full bg-white origin-center will-change-transform" />
+        {currentView.labelRight && (
+          <div className={currentView.rightLabelClass}>
+            <div
+              className={BASE_LABEL_CLASS}
+              style={{ color: getLabelColor(currentView, uiTheme) }}
+            >
+              {currentView.labelRight}
             </div>
-          )}
+          </div>
+        )}
 
-          {viewData[activeView].subtitle && (
-            <div className="overflow-hidden mt-0 pr-10 pl-10 text-center">
-              <p className="text-extra opacity-0 font-akira text-[12px] leading-[1.2] tracking-[0.24em] text-white">
-                {viewData[activeView].subtitle}
-              </p>
-            </div>
-          )}
-        </div>
+        <TextLayer
+          layer="front-car"
+          activeView={activeView}
+          titleRef={titleRef}
+          theme={uiTheme}
+        />
       </div>
 
-      {/* 5. BUTTONS (Z-30) */}
-      <div className="absolute inset-0 z-30 pointer-events-none flex justify-center">
-        <div className="absolute bottom-[14vh] flex gap-6 pointer-events-auto">
-          {(["side", "front", "cockpit"] as const).map((view, index) => {
+      {/* 5. View buttons */}
+      <div className="pointer-events-none absolute inset-0 z-30 flex justify-center">
+        <div className="pointer-events-auto absolute bottom-[14vh] flex gap-6">
+          {VIEW_ORDER.map((view, index) => {
+            const isActive = activeView === view;
             const label = `0${index + 1}`;
+
             return (
               <button
                 key={view}
                 onClick={() => handleViewChange(view)}
-                className={`w-12 h-12 flex items-center justify-center border font-mono text-sm font-bold transition-all duration-500 cursor-pointer backdrop-blur-sm hover:scale-110 ${
-                  activeView === view
-                    ? "bg-white text-black border-white scale-110"
-                    : "bg-black/20 text-white border-white/30 hover:border-white"
-                }`}
+                className={`${BASE_BUTTON_CLASS} ${isActive ? "scale-110" : ""}`}
+                style={{
+                  backgroundColor: isActive
+                    ? uiTheme.buttonActiveBg
+                    : uiTheme.buttonIdleBg,
+                  color: isActive
+                    ? uiTheme.buttonActiveText
+                    : uiTheme.buttonIdleText,
+                  borderColor: isActive
+                    ? uiTheme.buttonActiveBorder
+                    : uiTheme.buttonIdleBorder,
+                }}
               >
                 {label}
               </button>

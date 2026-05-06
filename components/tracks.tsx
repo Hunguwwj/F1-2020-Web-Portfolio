@@ -327,33 +327,34 @@ export default function Tracks() {
           "-=0.3",
         );
 
-      // --- INFO HUD REVEALS (Title, Stats, & List Header) ---
-      const infoElements = gsap.utils.toArray(".info-reveal") as HTMLElement[];
-      infoElements.forEach((el) => {
-        const block = el.querySelector(".info-block");
-        const content = el.querySelector(".info-content");
-
-        if (block && content) {
-          applyBlockReveal(block, content, "-=0.2", tlHeader);
-        }
-      });
-
-      // --- TRACK LIST ROWS (Linked entirely to the main screen trigger) ---
+      // --- TRACK LIST ROWS (Hybrid Cascade) ---
       const listElements = gsap.utils.toArray(".list-reveal") as HTMLElement[];
       listElements.forEach((el, index) => {
         const block = el.querySelector(".list-block");
         const content = el.querySelector(".list-content");
 
         if (block && content) {
-          // By linking ALL 22 items directly to tlHeader with a "-=0.7" overlap,
-          // it creates one massive, uninterrupted waterfall cascade triggered
-          // exactly when the Tracks section enters the main screen!
-          applyBlockReveal(
-            block,
-            content,
-            index === 0 ? "-=0.2" : "-=0.7",
-            tlHeader,
-          );
+          // 1. The first 7 items (Visible on load) cascade seamlessly with the HUD
+          if (index < 7) {
+            applyBlockReveal(
+              block,
+              content,
+              index === 0 ? "-=0.2" : "-=0.7",
+              tlHeader,
+            );
+          }
+          // 2. The unseen items (Off-screen) wait until you scroll them into view!
+          else {
+            const tlRow = gsap.timeline({
+              scrollTrigger: {
+                trigger: el,
+                scroller: "#tracks-scroller",
+                start: "top 95%", // Triggers right as the track enters the bottom of the list
+                once: true,
+              },
+            });
+            applyBlockReveal(block, content, undefined, tlRow);
+          }
         }
       });
     },
@@ -502,10 +503,6 @@ export default function Tracks() {
                       22 RNDS
                     </span>
                   </div>
-                  <div
-                    className="info-block absolute top-0 left-0 h-full bg-[#e10600] z-30 pointer-events-none"
-                    style={{ width: "0%" }}
-                  ></div>
                 </div>
 
                 {/* Scrollable Area */}
