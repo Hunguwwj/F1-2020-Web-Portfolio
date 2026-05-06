@@ -327,6 +327,16 @@ export default function Tracks() {
           "-=0.3",
         );
 
+      // --- INFO HUD REVEAL ---
+      const infoElements = gsap.utils.toArray(".info-reveal") as HTMLElement[];
+      infoElements.forEach((el, index) => {
+        const block = el.querySelector(".info-block");
+        const content = el.querySelector(".info-content");
+        if (block && content) {
+          applyBlockReveal(block, content, index === 0 ? "-=0.1" : "-=0.3", tlHeader);
+        }
+      });
+
       // --- TRACK LIST ROWS (Hybrid Cascade) ---
       const listElements = gsap.utils.toArray(".list-reveal") as HTMLElement[];
       listElements.forEach((el, index) => {
@@ -503,6 +513,10 @@ export default function Tracks() {
                       22 RNDS
                     </span>
                   </div>
+                  <div
+                    className="info-block absolute top-0 left-0 h-full bg-[#e10600] z-30"
+                    style={{ width: "0%" }}
+                  ></div>
                 </div>
 
                 {/* Scrollable Area */}
@@ -553,11 +567,6 @@ export default function Tracks() {
                     );
                   })}
                 </div>
-
-                <div
-                  className="info-block absolute top-0 left-0 h-full bg-[#e10600] z-30"
-                  style={{ width: "0%" }}
-                ></div>
               </div>
             </div>
           </div>
