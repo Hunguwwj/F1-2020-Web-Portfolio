@@ -52,6 +52,10 @@ export default function DotBootSequence() {
     () => {
       if (!shouldRender) return;
 
+      // Disable GSAP's lag smoothing so the animation "catches up"
+      // in the background instead of pausing when you switch tabs.
+      gsap.ticker.lagSmoothing(0);
+
       const tl = gsap.timeline({
         onComplete: () => setShouldRender(false),
       });
