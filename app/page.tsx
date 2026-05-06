@@ -1,8 +1,7 @@
 "use client";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ROUTES } from "../links/routes";
 import Tracks from "../components/tracks";
 import Championships from "../components/championship";
 import gsap from "gsap";
@@ -29,7 +28,7 @@ const teams = [
   {
     name: "Ferrari",
     bg: "/img/3.png",
-    route: ROUTES.FERRARI,
+    route: "/teams/ferrari",
     logo: "/logos/ferrari.svg",
     glowColor: "rgba(220, 0, 0, 0.6)",
   },
@@ -88,7 +87,14 @@ export default function Home() {
   const mainRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLElement>(null);
-
+  useEffect(() => {
+    // 1. Tell the browser NOT to restore the previous scroll position
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
+    // 2. Instantly snap the window to the very top before anything renders
+    window.scrollTo(0, 0);
+  }, []);
   const total = teams.length;
   const baseWidth = 100 / total;
   const hoverWidth = 25;
@@ -322,42 +328,48 @@ export default function Home() {
               className={`slice slice-${index} absolute top-0 left-0 w-full h-full cursor-pointer z-1 block`}
               style={{
                 clipPath: getClipPath(index, -1),
-                willChange: "clip-path",
                 transform: "translateZ(0)",
+                // REMOVED: willChange: "clip-path"
               }}
               onMouseEnter={() => handleHover(index)}
               onMouseLeave={() => handleHover(-1)}
             >
-              {/* OPTIMIZED: Removed 'filter' from willChange to save massive VRAM */}
+              {/* Background Image Layer */}
               <div
                 className={`slice-bg bg-${index} absolute top-0 left-0 w-screen h-screen bg-cover bg-center bg-no-repeat`}
                 style={{
                   backgroundImage: `url(${team.bg})`,
                   transform: "scale(1) translateZ(0)",
-                  willChange: "transform",
+                  // REMOVED: willChange: "transform"
                 }}
               />
 
-              {/* THE NEW FIX: This black box handles the darkening effect instead of CSS filters */}
+              {/* Dimmer Box */}
               <div
                 className={`dimmer-${index} absolute inset-0 bg-[#050505] pointer-events-none z-[5]`}
                 style={{
                   opacity: 0,
-                  willChange: "opacity",
+                  // REMOVED: willChange: "opacity"
                 }}
               />
 
-              <div className="slice-tint absolute inset-0 mix-blend-overlay opacity-60 pointer-events-none z-[6]" />
+              {/* THE FIX: Hidden on mobile (hidden md:block). Mix-blend-mode melts mobile GPUs. */}
+              <div className="slice-tint hidden md:block absolute inset-0 mix-blend-overlay opacity-60 pointer-events-none z-[6]" />
+
+              {/* Gradient Overlay */}
               <div className="absolute inset-0 pointer-events-none z-[10] bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
 
+              {/* Glow Layer */}
               <div
                 className={`glow-${index} absolute top-0 left-0 w-full h-[60vh] pointer-events-none z-20`}
                 style={{
                   background: `linear-gradient(to bottom, ${team.glowColor}, transparent)`,
                   opacity: 0.5,
-                  willChange: "opacity",
+                  // REMOVED: willChange: "opacity"
                 }}
               />
+
+              {/* Logo Container */}
               <div
                 className={`team-logo-container logo-container-${index} absolute top-[15%] flex items-center justify-center z-30 pointer-events-none`}
                 style={{
@@ -366,14 +378,14 @@ export default function Home() {
                   transform: "translateX(-50%) translateZ(0)",
                   opacity: 0,
                   filter: "grayscale(0)",
-                  willChange: "left, opacity, filter",
+                  // REMOVED: willChange: "left, opacity, filter"
                 }}
               >
                 <div
                   className={`logo-${index} w-[90px] h-[90px] md:w-[130px] md:h-[130px] flex items-center justify-center relative`}
                   style={{
                     transform: `scale(0.95) translateZ(0)`,
-                    willChange: "transform",
+                    // REMOVED: willChange: "transform"
                   }}
                 >
                   <Image
@@ -382,7 +394,7 @@ export default function Home() {
                     fill
                     style={{ objectFit: "contain" }}
                     sizes="(max-width: 768px) 80px, 130px"
-                    className="drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] z-10"
+                    className="z-10"
                   />
                 </div>
               </div>
@@ -532,8 +544,14 @@ export default function Home() {
               background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M0,0 L50,-50 L100,0 L100,6.25 L50,-43.75 L0,6.25 Z M0,12.5 L50,-37.5 L100,12.5 L100,18.75 L50,-31.25 L0,18.75 Z M0,25 L50,-25 L100,25 L100,31.25 L50,-18.75 L0,31.25 Z M0,37.5 L50,-12.5 L100,37.5 L100,43.75 L50,-6.25 L0,43.75 Z M0,50 L50,0 L100,50 L100,56.25 L50,6.25 L0,56.25 Z M0,62.5 L50,12.5 L100,62.5 L100,68.75 L50,18.75 L0,68.75 Z M0,75 L50,25 L100,75 L100,81.25 L50,31.25 L0,81.25 Z M0,87.5 L50,37.5 L100,87.5 L100,93.75 L50,43.75 L0,93.75 Z M0,100 L50,50 L100,100 L100,106.25 L50,56.25 L0,106.25 Z M0,112.5 L50,62.5 L100,112.5 L100,118.75 L50,68.75 L0,118.75 Z M0,125 L50,75 L100,125 L100,131.25 L50,81.25 L0,131.25 Z M0,137.5 L50,87.5 L100,137.5 L100,143.75 L50,93.75 L0,143.75 Z' fill='%23ffffff'/%3E%3C/svg%3E");
               background-size: 200vw 1600px; 
               background-repeat: repeat-y; 
-              animation: scrollContinuousChevron 15s linear infinite; 
+              
+              animation: scrollContinuousChevron 45s linear infinite; 
+              animation-play-state: paused;
               transform: translateZ(0);
+            }
+          .group:hover .animate-continuous-chevron {
+              /* Only run the heavy animation when the user actually hovers */
+              animation-play-state: running;
             }
           `}</style>
 

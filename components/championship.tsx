@@ -63,21 +63,40 @@ export default function Championships() {
   const [seasonData, setSeasonData] = useState<SeasonData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+
+  // 1. Only store the initial mount coordinates to prevent thrashing
   const [hoveredTeam, setHoveredTeam] = useState<{
     name: string;
-    x: number;
-    y: number;
+    startX: number;
+    startY: number;
   } | null>(null);
+
   const [hoveredDriver, setHoveredDriver] = useState<{
     name: string;
-    x: number;
-    y: number;
+    startX: number;
+    startY: number;
   } | null>(null);
-  const [hoveredRace, setHoveredRace] = useState<{
-    name: string;
-    x: number;
-    y: number;
-  } | null>(null);
+
+  // 2. Create refs to control the popups directly in the DOM
+  const teamPopupRef = useRef<HTMLDivElement>(null);
+  const driverPopupRef = useRef<HTMLDivElement>(null);
+
+  // 3. Direct DOM manipulation for movement (60fps, no React re-renders)
+  const handleTeamMouseMove = (e: React.MouseEvent) => {
+    if (teamPopupRef.current) {
+      const x = e.clientX + 40 > window.innerWidth - 300 ? e.clientX - 340 : e.clientX + 40;
+      teamPopupRef.current.style.left = `${x}px`;
+      teamPopupRef.current.style.top = `${e.clientY}px`;
+    }
+  };
+
+  const handleDriverMouseMove = (e: React.MouseEvent) => {
+    if (driverPopupRef.current) {
+      const x = e.clientX + 40 > window.innerWidth - 300 ? e.clientX - 340 : e.clientX + 40;
+      driverPopupRef.current.style.left = `${x}px`;
+      driverPopupRef.current.style.top = `${e.clientY}px`;
+    }
+  };
 
   const getTeamLogo = (teamName: string) => {
     const map: Record<string, string> = {
@@ -102,10 +121,10 @@ export default function Championships() {
     const map: Record<string, string> = {
       "Lewis Hamilton": "lewis hamilton.png",
       "Valtteri Bottas": "valtteri bottas.png",
-      "Max Verstappen": "max verstapen.png", // Matches your filename spelling
+      "Max Verstappen": "max verstapen.png",
       "Sergio Perez": "sergio perez.png",
       "Daniel Ricciardo": "daniel ricciardo.png",
-      "Carlos Sainz": "carlos sains.png", // Matches your filename spelling
+      "Carlos Sainz": "carlos sains.png",
       "Alexander Albon": "alexander albon.png",
       "Charles Leclerc": "charles leclerc.png",
       "Lando Norris": "lando norris.png",
@@ -127,7 +146,6 @@ export default function Championships() {
       (k) => k.toLowerCase() === driverName.toLowerCase().trim(),
     );
 
-    // Updated to use capital 'Driver' folder path to match your directory
     return key ? encodeURI(`/Driver/${map[key]}`) : `/Driver/default.png`;
   };
 
@@ -152,14 +170,6 @@ export default function Championships() {
     if (name.includes("abu dhabi")) return "ae";
     return "un";
   };
-
-  const handleMouseMove = (e: React.MouseEvent, team: string) =>
-    setHoveredTeam({ name: team, x: e.clientX, y: e.clientY });
-  const handleMouseLeave = () => setHoveredTeam(null);
-
-  const handleDriverMouseMove = (e: React.MouseEvent, driverName: string) =>
-    setHoveredDriver({ name: driverName, x: e.clientX, y: e.clientY });
-  const handleDriverMouseLeave = () => setHoveredDriver(null);
 
   const headerRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLDivElement>(null);
@@ -486,10 +496,10 @@ export default function Championships() {
                     <div
                       className="row-content opacity-0 flex items-center justify-between py-4 px-4 transition-colors duration-200 hover:bg-[#e10600] group relative z-20 cursor-pointer pointer-events-auto"
                       onMouseEnter={(e) =>
-                        handleDriverMouseMove(e, driver.name)
+                        setHoveredDriver({ name: driver.name, startX: e.clientX, startY: e.clientY })
                       }
-                      onMouseMove={(e) => handleDriverMouseMove(e, driver.name)}
-                      onMouseLeave={handleDriverMouseLeave}
+                      onMouseMove={handleDriverMouseMove}
+                      onMouseLeave={() => setHoveredDriver(null)}
                     >
                       <div className="flex items-center gap-4 md:gap-8 flex-1 overflow-hidden">
                         <div className="relative tracking-wide font-akira text-2xl md:text-4xl text-white/50 group-hover:text-black italic w-10 md:w-16 flex-shrink-0">
@@ -554,9 +564,11 @@ export default function Championships() {
 
                     <div
                       className="row-content opacity-0 flex items-center justify-between py-4 px-4 transition-colors duration-200 hover:bg-[#e10600] group relative z-20 cursor-pointer pointer-events-auto"
-                      onMouseEnter={(e) => handleMouseMove(e, team.team)}
-                      onMouseMove={(e) => handleMouseMove(e, team.team)}
-                      onMouseLeave={handleMouseLeave}
+                      onMouseEnter={(e) => 
+                        setHoveredTeam({ name: team.team, startX: e.clientX, startY: e.clientY })
+                      }
+                      onMouseMove={handleTeamMouseMove}
+                      onMouseLeave={() => setHoveredTeam(null)}
                     >
                       <div className="flex items-center gap-4 md:gap-8 flex-1 overflow-hidden">
                         <div className="relative tracking-wide font-akira text-2xl md:text-4xl text-white/40 group-hover:text-black italic w-10 md:w-16 flex-shrink-0">
@@ -600,21 +612,6 @@ export default function Championships() {
                 <div
                   key={race.round}
                   className="race-row group relative flex items-center justify-between py-6 px-4 md:px-4 border-b border-white/10 hover:bg-[#e10600] transition-colors duration-200 cursor-pointer"
-                  onMouseEnter={(e) =>
-                    setHoveredRace({
-                      name: race.name,
-                      x: e.clientX,
-                      y: e.clientY,
-                    })
-                  }
-                  onMouseMove={(e) =>
-                    setHoveredRace({
-                      name: race.name,
-                      x: e.clientX,
-                      y: e.clientY,
-                    })
-                  }
-                  onMouseLeave={() => setHoveredRace(null)}
                 >
                   {/* LEFT: Round, Race Name, Flag */}
                   <div className="flex items-center md:gap-8 flex-1 overflow-hidden">
@@ -659,13 +656,14 @@ export default function Championships() {
         hoveredTeam &&
         createPortal(
           <div
+            ref={teamPopupRef}
             className="fixed pointer-events-none z-[99999] transform -translate-y-1/2 transition-opacity duration-200"
             style={{
               left:
-                hoveredTeam.x + 40 > window.innerWidth - 300
-                  ? hoveredTeam.x - 340
-                  : hoveredTeam.x + 40,
-              top: hoveredTeam.y,
+                hoveredTeam.startX + 40 > window.innerWidth - 300
+                  ? hoveredTeam.startX - 340
+                  : hoveredTeam.startX + 40,
+              top: hoveredTeam.startY,
             }}
           >
             <div className="w-64 h-96 md:w-[300px] md:h-[200px] bg-[#000000] rounded-xl border border-[#e10600] flex flex-col items-center justify-center p-8 relative overflow-hidden">
@@ -685,22 +683,21 @@ export default function Championships() {
         hoveredDriver &&
         createPortal(
           <div
+            ref={driverPopupRef}
             className="fixed pointer-events-none z-[99999] transform -translate-y-1/2 transition-opacity duration-200"
             style={{
               left:
-                hoveredDriver.x + 40 > window.innerWidth - 300
-                  ? hoveredDriver.x - 340
-                  : hoveredDriver.x + 40,
-              top: hoveredDriver.y,
+                hoveredDriver.startX + 40 > window.innerWidth - 300
+                  ? hoveredDriver.startX - 340
+                  : hoveredDriver.startX + 40,
+              top: hoveredDriver.startY,
             }}
           >
             <div className="w-64 h-96 md:w-[300px] md:h-[400px] bg-[#000000] overflow-hidden flex flex-col relative rounded-xl border border-[#e10600]">
               {/* Image Box */}
               <div className="flex-1 flex items-end justify-center relative z-10 ">
                 <img
-                  key={
-                    hoveredDriver.name
-                  } /* THE MAGIC FIX: Forces a complete CSS reset on hover change */
+                  key={hoveredDriver.name} 
                   src={getDriverImage(hoveredDriver.name)}
                   alt={hoveredDriver.name}
                   className="w-full h-full object-contain object-bottom filter contrast-125 saturate-110"
