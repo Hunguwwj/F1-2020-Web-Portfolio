@@ -101,11 +101,11 @@ export type TeamCanvasProps = {
 // 1) MODEL: đổi đường dẫn model tại đây khi nhân bản xe khác.
 // =========================================================
 const TEAM_MODEL: TeamModelConfig = {
-    modelPath: "../models/ferrari",
-    lightColor: 0xffb3ad,
-    lightIntensity: 4.3,
-    ambientLightColor: 0xffffff,
-    ambientIntensity: 0.92,
+  modelPath: "../models/ferrari",
+  lightColor: 0xffb3ad,
+  lightIntensity: 4.3,
+  ambientLightColor: 0xffffff,
+  ambientIntensity: 0.92,
 };
 
 // =========================================================
@@ -113,7 +113,7 @@ const TEAM_MODEL: TeamModelConfig = {
 // =========================================================
 const TEAM_THEME: CanvasTheme = {
   sectionBackground:
-      "linear-gradient(180deg, #E10600 0%, #C90000 52%, #7A0000 100%)",
+    "linear-gradient(180deg, #E10600 0%, #C90000 52%, #7A0000 100%)",
   cinematicBar: "#FFFFFF",
 
   backgroundTitleColor: "rgba(255, 235, 235, 0.36)",
@@ -148,7 +148,8 @@ const VIEW_DATA: Record<ViewKey, ViewConfig> = {
     titleLayer: "behind-car",
 
     leftLabelClass: "absolute top-[14vh] left-[5vw] overflow-hidden pb-2 pr-4",
-    rightLabelClass: "absolute top-[14vh] right-[5vw] overflow-hidden pb-2 pr-4",
+    rightLabelClass:
+      "absolute top-[14vh] right-[5vw] overflow-hidden pb-2 pr-4",
     titleContainerClass:
       "absolute inset-0 flex flex-col items-center justify-center font-akira",
     titleClass: "font-black uppercase tracking-wide leading-none text-[15vw]",
@@ -207,10 +208,12 @@ const VIEW_DATA: Record<ViewKey, ViewConfig> = {
     titleLayer: "front-car",
 
     leftLabelClass: "absolute top-[12vh] left-[9vw] overflow-hidden pb-2 pr-4",
-    rightLabelClass: "absolute top-[12vh] right-[5vw] overflow-hidden pb-2 pr-4",
+    rightLabelClass:
+      "absolute top-[12vh] right-[5vw] overflow-hidden pb-2 pr-4",
     titleContainerClass:
       "absolute top-[35vh] w-full flex flex-col items-center justify-center",
-    titleClass: "max-w-5xl text-center font-mono text-3xl leading-tight md:text-5xl",
+    titleClass:
+      "max-w-5xl text-center font-mono text-3xl leading-tight md:text-5xl",
 
     textEffect: "blur",
     exitAnim: {
@@ -235,8 +238,7 @@ const BASE_SUBTITLE_CLASS =
 const BASE_BUTTON_CLASS =
   "flex h-12 w-12 cursor-pointer items-center justify-center border font-mono text-sm font-bold backdrop-blur-sm transition-all duration-500 hover:scale-110";
 
-// Cache theo modelPath để nhân bản nhiều xe không bị load engine lặp lại.
-const engineCache = new Map<string, SceneManager>();
+// 🚨 REMOVED: Global engineCache has been deleted to prevent VRAM memory leaks.
 
 function mergeModelConfig(model?: Partial<TeamModelConfig>): TeamModelConfig {
   return { ...TEAM_MODEL, ...model };
@@ -488,58 +490,68 @@ export default function FerrariCanvas({
   const currentView = VIEW_DATA[activeView];
 
   // === HOOK 1: setup 3D engine ===
-// === HOOK 1: setup 3D engine ===
   useGSAP(
     () => {
       let isCancelled = false;
 
+      // 🚨 THE FIX: Use a locally scoped variable to track this exact engine instance
+      let localEngine: SceneManager | null = null;
+
       const setup = async () => {
         if (!containerRef.current) return;
 
-        // THE FIX: Always create a fresh instance. Do not cache the SceneManager globally!
-        const engine = new SceneManager(containerRef.current, modelConfig);
-        engineRef.current = engine;
+        // Assign to both the local variable and the ref
+        localEngine = new SceneManager(containerRef.current, modelConfig);
+        engineRef.current = localEngine;
 
-        await engine.init();
-        engine.precompileShaders();
-        engine.warmUpGPU();
+        try {
+          await localEngine.init();
 
-        requestAnimationFrame(() => {
+          // 🚨 CIRCUIT BREAKER: Stop executing if user navigated away
+          if (isCancelled) return;
+
+          localEngine.precompileShaders();
+          localEngine.warmUpGPU();
+
           requestAnimationFrame(() => {
-            if (!isCancelled && engineRef.current) {
-              startMainShow(
-                engineRef.current,
-                topBarRef.current,
-                bottomBarRef.current,
-                () => setIsEngineReady(true),
-              );
-            }
+            requestAnimationFrame(() => {
+              if (!isCancelled && localEngine) {
+                startMainShow(
+                  localEngine,
+                  topBarRef.current,
+                  bottomBarRef.current,
+                  () => setIsEngineReady(true),
+                );
+              }
+            });
           });
-        });
+        } catch (e) {
+          console.warn("Engine setup aborted", e);
+        }
       };
 
       setup();
 
       return () => {
         isCancelled = true;
-        const engine = engineRef.current;
 
-        if (engine && containerRef.current) {
-          const canvas = engine.renderer.domElement;
+        // 🚨 THE FIX: Clean up the LOCAL engine, not the ref.
+        // This guarantees 100% memory disposal even if React double-renders quickly.
+        if (localEngine) {
+          if (containerRef.current && localEngine.renderer.domElement) {
+            if (
+              containerRef.current.contains(localEngine.renderer.domElement)
+            ) {
+              containerRef.current.removeChild(localEngine.renderer.domElement);
+            }
+          }
 
-          if (containerRef.current.contains(canvas)) {
-            containerRef.current.removeChild(canvas);
+          if (typeof localEngine.destroy === "function") {
+            localEngine.destroy();
           }
-          
-          // THE MAGIC FIX: Force the GPU to dump the memory when you leave the page
-          if (engine.renderer && typeof engine.renderer.dispose === 'function') {
-             engine.renderer.dispose();
-          }
-          // Also call any custom destroy() method you might have built inside SceneManager!
         }
       };
     },
-    // ...
     {
       dependencies: [
         modelConfig.modelPath,
@@ -560,7 +572,9 @@ export default function FerrariCanvas({
       const uiContainer = triggerRef.current;
       const extras = getAnimatedExtras(uiContainer);
       const lineEl = getAnimatedLine(uiContainer);
-      const allElements = [titleEl, ...extras, lineEl].filter(Boolean) as Element[];
+      const allElements = [titleEl, ...extras, lineEl].filter(
+        Boolean,
+      ) as Element[];
 
       resetAnimatedElements(allElements);
       animateLine(lineEl);

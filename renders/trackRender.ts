@@ -21,6 +21,16 @@ export class TrackRenderer {
   // NEW: Store the array of trail segments
   private trailMeshes: THREE.Mesh[] = [];
 
+  // CACHE: Optimize performance by keeping previously loaded tracks in memory
+  private trackCache: Map<string, {
+    group: THREE.Group;
+    mainCurve: THREE.CatmullRomCurve3 | null;
+    trailGroup: THREE.Group | null;
+    trailMeshes: THREE.Mesh[];
+    trackCenter: THREE.Vector3;
+  }> = new Map();
+  private loader = new SVGLoader();
+
   constructor(container: HTMLElement) {
     this.scene = new THREE.Scene();
 
@@ -103,22 +113,27 @@ export class TrackRenderer {
   }
 
   public loadTrack(url: string) {
-    const loader = new SVGLoader();
+    if (this.trackCache.has(url)) {
+      while (this.trackGroup.children.length > 0) {
+        this.trackGroup.remove(this.trackGroup.children[0]);
+      }
+      
+      const cached = this.trackCache.get(url)!;
+      this.trackGroup.add(cached.group);
+      this.mainCurve = cached.mainCurve;
+      this.trailGroup = cached.trailGroup;
+      this.trailMeshes = cached.trailMeshes;
+      this.trackCenter.copy(cached.trackCenter);
+      return;
+    }
 
-    loader.load(url, (data) => {
+    this.loader.load(url, (data) => {
       // 1. HARD RESET
       while (this.trackGroup.children.length > 0) {
-        const child = this.trackGroup.children[0] as THREE.Mesh | THREE.Group;
-        if ((child as THREE.Mesh).geometry)
-          (child as THREE.Mesh).geometry.dispose();
-        if ((child as THREE.Mesh).material)
-          ((child as THREE.Mesh).material as THREE.Material).dispose();
-        this.trackGroup.remove(child);
+        this.trackGroup.remove(this.trackGroup.children[0]);
       }
 
-      this.trackGroup.scale.set(1, 1, 1);
-      this.trackGroup.position.set(0, 0, 0);
-      this.trackGroup.rotation.set(0, 0, 0);
+      const newTrackContainer = new THREE.Group();
 
       this.mainCurve = null;
       let maxPoints = 0;
@@ -173,17 +188,17 @@ export class TrackRenderer {
 
           const mesh = new THREE.Mesh(geometry, material);
           
-          this.trackGroup.add(mesh);
+          newTrackContainer.add(mesh);
         });
       });
 
       // 3. CENTERING & SIZING
-      const box = new THREE.Box3().setFromObject(this.trackGroup);
+      const box = new THREE.Box3().setFromObject(newTrackContainer);
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
       this.trackCenter.copy(center);
 
-      this.trackGroup.children.forEach((child) => {
+      newTrackContainer.children.forEach((child) => {
         child.position.sub(center);
       });
 
@@ -220,11 +235,22 @@ export class TrackRenderer {
         const light = new THREE.PointLight(0xffffff, 4, 60 / targetScale);
         this.trailGroup.add(light);
 
-        this.trackGroup.add(this.trailGroup);
+        newTrackContainer.add(this.trailGroup);
       }
 
-      this.trackGroup.scale.set(targetScale, targetScale, targetScale);
-      this.trackGroup.rotation.x = -Math.PI / 2;
+      newTrackContainer.scale.set(targetScale, targetScale, targetScale);
+      newTrackContainer.rotation.x = -Math.PI / 2;
+
+      // Cache the constructed track
+      this.trackCache.set(url, {
+        group: newTrackContainer,
+        mainCurve: this.mainCurve,
+        trailGroup: this.trailGroup,
+        trailMeshes: [...this.trailMeshes],
+        trackCenter: this.trackCenter.clone()
+      });
+
+      this.trackGroup.add(newTrackContainer);
     });
   }
 
@@ -273,6 +299,22 @@ export class TrackRenderer {
   public destroy() {
     if (this.animationId !== null) cancelAnimationFrame(this.animationId);
     this.resizeObserver.disconnect();
+    
+    // Cleanup cached geometries and materials
+    this.trackCache.forEach((cached) => {
+      cached.group.traverse((child: any) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          if (Array.isArray(child.material)) {
+            child.material.forEach((m: any) => m.dispose());
+          } else {
+            child.material.dispose();
+          }
+        }
+      });
+    });
+    this.trackCache.clear();
+
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement) {
       this.renderer.domElement.parentElement.removeChild(

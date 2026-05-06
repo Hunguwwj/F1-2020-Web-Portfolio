@@ -10,16 +10,6 @@ import { ScrambleTextPlugin, SplitText } from "gsap/all";
 
 gsap.registerPlugin(SplitText, ScrambleTextPlugin);
 
-/*
-  =========================================================
-  EASY EDIT AREA
-  Khi muốn nhân bản sang xe khác, bạn chủ yếu sửa 3 phần:
-  1. TEAM_MODEL  -> đường dẫn model và ánh sáng
-  2. TEAM_THEME  -> màu nền, màu chữ, màu nút
-  3. VIEW_DATA   -> chữ, vị trí, layout từng góc nhìn
-  =========================================================
-*/
-
 type ViewKey = "side" | "front" | "cockpit";
 type TextEffect = "blink-slide" | "decode-slide" | "float" | "blur";
 type TitleLayer = "behind-car" | "front-car";
@@ -27,19 +17,13 @@ type TitleLayer = "behind-car" | "front-car";
 type CanvasTheme = {
   sectionBackground: string;
   cinematicBar: string;
-
-  // Màu mặc định cho title lớn nếu từng view không tự set titleColor.
   backgroundTitleColor: string;
   viewTitleColor: string;
-
-  // Màu chữ phụ: label, line, nút...
   mainText: string;
   line: string;
-
   buttonActiveBg: string;
   buttonActiveText: string;
   buttonActiveBorder: string;
-
   buttonIdleBg: string;
   buttonIdleText: string;
   buttonIdleBorder: string;
@@ -56,50 +40,30 @@ type TeamModelConfig = {
 type ViewConfig = {
   title: string;
   subtitle: string;
-
-  /** Màu title riêng cho từng view. Nếu bỏ trống sẽ lấy màu từ TEAM_THEME. */
   titleColor?: string;
-
-  /**
-   * Màu subtitle riêng.
-   * Nếu bỏ trống và subtitleUseTitleColor = true, subtitle sẽ cùng màu với title.
-   * Nếu bỏ trống và subtitleUseTitleColor không bật, subtitle sẽ lấy màu mainText.
-   */
   subtitleColor?: string;
   subtitleUseTitleColor?: boolean;
-
   labelLeft: string;
   labelRight: string;
   labelColor?: string;
-
   showLine: boolean;
   titleLayer: TitleLayer;
-
   leftLabelClass: string;
   rightLabelClass: string;
   titleContainerClass: string;
   titleClass: string;
   subtitleClass?: string;
-
   textEffect: TextEffect;
   exitAnim: gsap.TweenVars;
   canvasShift: string;
 };
 
 export type TeamCanvasProps = {
-  /** Đổi nhanh nền/chữ/nút từ page.tsx nếu cần. */
   theme?: Partial<CanvasTheme>;
-
-  /** Đổi nhanh model từ page.tsx nếu cần. */
   model?: Partial<TeamModelConfig>;
-
-  /** View đầu tiên khi mở section. Mặc định là side. */
   initialView?: ViewKey;
 };
 
-// =========================================================
-// 1) MODEL: đổi đường dẫn model tại đây khi nhân bản xe khác.
-// =========================================================
 const TEAM_MODEL: TeamModelConfig = {
   modelPath: "../models/alfaromeo",
   lightColor: 0xffc2c2,
@@ -108,45 +72,32 @@ const TEAM_MODEL: TeamModelConfig = {
   ambientIntensity: 0.9,
 };
 
-// =========================================================
-// 2) THEME: toàn bộ màu chính của section nằm ở đây.
-// =========================================================
 const TEAM_THEME: CanvasTheme = {
   sectionBackground:
     "linear-gradient(180deg, #900000 0%, #5A0000 55%, #130508 100%)",
   cinematicBar: "#FFF4F4",
-
   backgroundTitleColor: "rgba(255, 244, 244, 0.28)",
   viewTitleColor: "#FFF4F4",
-
   mainText: "#FFF4F4",
   line: "#FFF4F4",
-
   buttonActiveBg: "#FFF4F4",
   buttonActiveText: "#130508",
   buttonActiveBorder: "#FFF4F4",
-
   buttonIdleBg: "rgba(255, 244, 244, 0.08)",
   buttonIdleText: "#FFF4F4",
   buttonIdleBorder: "rgba(255, 244, 244, 0.42)",
 };
 
-// =========================================================
-// 3) VIEW DATA: sửa nội dung, màu chữ, vị trí từng góc nhìn.
-// =========================================================
 const VIEW_DATA: Record<ViewKey, ViewConfig> = {
   side: {
     title: "ALFA ROMEO",
     subtitle: "Alfa Romeo Racing ORLEN",
     titleColor: "rgba(255, 244, 244, 0.28)",
     subtitleUseTitleColor: false,
-
     labelLeft: "SWISS PRECISION",
     labelRight: "HINWIL, SWITZERLAND",
-
     showLine: true,
     titleLayer: "behind-car",
-
     leftLabelClass: "absolute top-[14vh] left-[5vw] overflow-hidden pb-2 pr-4",
     rightLabelClass:
       "absolute top-[14vh] right-[5vw] overflow-hidden pb-2 pr-4",
@@ -154,7 +105,6 @@ const VIEW_DATA: Record<ViewKey, ViewConfig> = {
       "absolute inset-0 flex flex-col items-center justify-center font-akira",
     titleClass:
       "font-black uppercase tracking-wide leading-none text-[10.18vw]",
-
     textEffect: "blink-slide",
     exitAnim: {
       y: 220,
@@ -164,28 +114,21 @@ const VIEW_DATA: Record<ViewKey, ViewConfig> = {
     },
     canvasShift: "0vw",
   },
-
   front: {
     title: "C39",
     subtitle: "Burgundy Line",
     titleColor: "#FFF4F4",
-
-    // Đây là dòng bạn cần: subtitle sẽ tự cùng màu với title SF1000.
     subtitleUseTitleColor: true,
-
     labelLeft: "CHASSIS",
     labelRight: "2020",
-
     showLine: false,
     titleLayer: "behind-car",
-
     leftLabelClass: "absolute top-[8vh] left-[5vw] overflow-hidden pb-2 pr-4",
     rightLabelClass: "absolute top-[8vh] right-[5vw] overflow-hidden pb-2 pr-4",
     titleContainerClass:
       "absolute top-[6vh] right-[7vw] text-right flex flex-col items-end",
     titleClass:
       "font-akira text-[13vw] font-black uppercase leading-none tracking-[0.04em]",
-
     textEffect: "decode-slide",
     exitAnim: {
       y: 220,
@@ -195,19 +138,15 @@ const VIEW_DATA: Record<ViewKey, ViewConfig> = {
     },
     canvasShift: "-15vw",
   },
-
   cockpit: {
     title: '"LEAVE ME ALONE, I KNOW WHAT TO DO."',
     subtitle: "KIMI RAIKKONEN",
     titleColor: "#FFF4F4",
     subtitleUseTitleColor: true,
-
     labelLeft: "",
     labelRight: "",
-
     showLine: false,
     titleLayer: "front-car",
-
     leftLabelClass: "absolute top-[12vh] left-[9vw] overflow-hidden pb-2 pr-4",
     rightLabelClass:
       "absolute top-[12vh] right-[5vw] overflow-hidden pb-2 pr-4",
@@ -215,7 +154,6 @@ const VIEW_DATA: Record<ViewKey, ViewConfig> = {
       "absolute top-[35vh] w-full flex flex-col items-center justify-center",
     titleClass:
       "max-w-5xl text-center font-mono text-3xl leading-tight md:text-5xl",
-
     textEffect: "blur",
     exitAnim: {
       scale: 1.05,
@@ -238,9 +176,6 @@ const BASE_SUBTITLE_CLASS =
 
 const BASE_BUTTON_CLASS =
   "flex h-12 w-12 cursor-pointer items-center justify-center border font-mono text-sm font-bold backdrop-blur-sm transition-all duration-500 hover:scale-110";
-
-// Cache theo modelPath để nhân bản nhiều xe không bị load engine lặp lại.
-const engineCache = new Map<string, SceneManager>();
 
 function mergeModelConfig(model?: Partial<TeamModelConfig>): TeamModelConfig {
   return { ...TEAM_MODEL, ...model };
@@ -492,61 +427,68 @@ export default function FerrariCanvas({
   const currentView = VIEW_DATA[activeView];
 
   // === HOOK 1: setup 3D engine ===
-  // === HOOK 1: setup 3D engine ===
   useGSAP(
     () => {
       let isCancelled = false;
 
+      // 🚨 THE FIX: Use a locally scoped variable to track this exact engine instance
+      let localEngine: SceneManager | null = null;
+
       const setup = async () => {
         if (!containerRef.current) return;
 
-        // THE FIX: Always create a fresh instance. Do not cache the SceneManager globally!
-        const engine = new SceneManager(containerRef.current, modelConfig);
-        engineRef.current = engine;
+        // Assign to both the local variable and the ref
+        localEngine = new SceneManager(containerRef.current, modelConfig);
+        engineRef.current = localEngine;
 
-        await engine.init();
-        engine.precompileShaders();
-        engine.warmUpGPU();
+        try {
+          await localEngine.init();
 
-        requestAnimationFrame(() => {
+          // CIRCUIT BREAKER
+          if (isCancelled) return;
+
+          localEngine.precompileShaders();
+          localEngine.warmUpGPU();
+
           requestAnimationFrame(() => {
-            if (!isCancelled && engineRef.current) {
-              startMainShow(
-                engineRef.current,
-                topBarRef.current,
-                bottomBarRef.current,
-                () => setIsEngineReady(true),
-              );
-            }
+            requestAnimationFrame(() => {
+              if (!isCancelled && localEngine) {
+                startMainShow(
+                  localEngine,
+                  topBarRef.current,
+                  bottomBarRef.current,
+                  () => setIsEngineReady(true),
+                );
+              }
+            });
           });
-        });
+        } catch (e) {
+          console.warn("Engine setup aborted", e);
+        }
       };
 
       setup();
 
       return () => {
         isCancelled = true;
-        const engine = engineRef.current;
 
-        if (engine && containerRef.current) {
-          const canvas = engine.renderer.domElement;
-
-          if (containerRef.current.contains(canvas)) {
-            containerRef.current.removeChild(canvas);
+        // 🚨 THE FIX: Clean up the LOCAL engine, not the ref.
+        // This guarantees 100% memory disposal even if React double-renders quickly.
+        if (localEngine) {
+          if (containerRef.current && localEngine.renderer.domElement) {
+            if (
+              containerRef.current.contains(localEngine.renderer.domElement)
+            ) {
+              containerRef.current.removeChild(localEngine.renderer.domElement);
+            }
           }
 
-          // THE MAGIC FIX: Force the GPU to dump the memory when you leave the page
-          if (
-            engine.renderer &&
-            typeof engine.renderer.dispose === "function"
-          ) {
-            engine.renderer.dispose();
+          if (typeof localEngine.destroy === "function") {
+            localEngine.destroy();
           }
-          // Also call any custom destroy() method you might have built inside SceneManager!
         }
       };
     },
-    // ...
     {
       dependencies: [
         modelConfig.modelPath,

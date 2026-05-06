@@ -43,7 +43,7 @@ const StatCard = ({ title, value }: { title: string; value: string }) => (
   <div className="stat-card opacity-0 relative border-b border-white/10 py-5 md:py-6 px-4 transition-colors duration-200 hover:bg-[#e10600] group cursor-default overflow-hidden">
     <div className="absolute inset-0 bg-[#e10600] origin-left scale-x-0 z-10 pointer-events-none group-hover:scale-x-100 transition-transform duration-300"></div>
     <div className="relative z-20 flex items-center gap-4 md:gap-8 w-full">
-      <div className="relative font-akira text-2xl md:text-4xl text-white/40 group-hover:text-black italic w-10 md:w-16 flex-shrink-0">
+      <div className="relative font-akira text-2xl md:text-4xl text-white/40 group-hover:text-black italic w-10 md:w-16 flex-shrink-0 will-change-transform">
         <div className="absolute top-1/2 right-[50%] w-[156%] h-[20px] bg-[#e10600] group-hover:bg-black rotate-90 -translate-y-1/2 transition-colors duration-200"></div>
       </div>
       <div className="flex flex-col overflow-hidden">
@@ -84,17 +84,22 @@ export default function Championships() {
   // 3. Direct DOM manipulation for movement (60fps, no React re-renders)
   const handleTeamMouseMove = (e: React.MouseEvent) => {
     if (teamPopupRef.current) {
-      const x = e.clientX + 40 > window.innerWidth - 300 ? e.clientX - 340 : e.clientX + 40;
-      teamPopupRef.current.style.left = `${x}px`;
-      teamPopupRef.current.style.top = `${e.clientY}px`;
+      const xOffset =
+        e.clientX + 40 > window.innerWidth - 300
+          ? e.clientX - 340
+          : e.clientX + 40;
+      teamPopupRef.current.style.transform = `translate3d(${xOffset}px, ${e.clientY}px, 0) translateY(-50%)`;
     }
   };
 
   const handleDriverMouseMove = (e: React.MouseEvent) => {
     if (driverPopupRef.current) {
-      const x = e.clientX + 40 > window.innerWidth - 300 ? e.clientX - 340 : e.clientX + 40;
-      driverPopupRef.current.style.left = `${x}px`;
-      driverPopupRef.current.style.top = `${e.clientY}px`;
+      const xOffset =
+        e.clientX + 40 > window.innerWidth - 300
+          ? e.clientX - 340
+          : e.clientX + 40;
+      // Using translate3d for GPU acceleration and translateY(-50%) for vertical centering
+      driverPopupRef.current.style.transform = `translate3d(${xOffset}px, ${e.clientY}px, 0) translateY(-50%)`;
     }
   };
 
@@ -496,7 +501,11 @@ export default function Championships() {
                     <div
                       className="row-content opacity-0 flex items-center justify-between py-4 px-4 transition-colors duration-200 hover:bg-[#e10600] group relative z-20 cursor-pointer pointer-events-auto"
                       onMouseEnter={(e) =>
-                        setHoveredDriver({ name: driver.name, startX: e.clientX, startY: e.clientY })
+                        setHoveredDriver({
+                          name: driver.name,
+                          startX: e.clientX,
+                          startY: e.clientY,
+                        })
                       }
                       onMouseMove={handleDriverMouseMove}
                       onMouseLeave={() => setHoveredDriver(null)}
@@ -564,8 +573,12 @@ export default function Championships() {
 
                     <div
                       className="row-content opacity-0 flex items-center justify-between py-4 px-4 transition-colors duration-200 hover:bg-[#e10600] group relative z-20 cursor-pointer pointer-events-auto"
-                      onMouseEnter={(e) => 
-                        setHoveredTeam({ name: team.team, startX: e.clientX, startY: e.clientY })
+                      onMouseEnter={(e) =>
+                        setHoveredTeam({
+                          name: team.team,
+                          startX: e.clientX,
+                          startY: e.clientY,
+                        })
                       }
                       onMouseMove={handleTeamMouseMove}
                       onMouseLeave={() => setHoveredTeam(null)}
@@ -656,15 +669,11 @@ export default function Championships() {
         hoveredTeam &&
         createPortal(
           <div
-            ref={teamPopupRef}
-            className="fixed pointer-events-none z-[99999] transform -translate-y-1/2 transition-opacity duration-200"
+            ref={teamPopupRef} // Keep ref for direct DOM manipulation
+            className="fixed pointer-events-none z-[99999] transition-opacity duration-200" // Removed transform from className
             style={{
-              left:
-                hoveredTeam.startX + 40 > window.innerWidth - 300
-                  ? hoveredTeam.startX - 340
-                  : hoveredTeam.startX + 40,
-              top: hoveredTeam.startY,
-            }}
+              transform: `translate3d(${hoveredTeam.startX + 40 > window.innerWidth - 300 ? hoveredTeam.startX - 340 : hoveredTeam.startX + 40}px, ${hoveredTeam.startY}px, 0) translateY(-50%)`,
+            }} // Initial transform for GPU acceleration
           >
             <div className="w-64 h-96 md:w-[300px] md:h-[200px] bg-[#000000] rounded-xl border border-[#e10600] flex flex-col items-center justify-center p-8 relative overflow-hidden">
               <img
@@ -683,21 +692,17 @@ export default function Championships() {
         hoveredDriver &&
         createPortal(
           <div
-            ref={driverPopupRef}
-            className="fixed pointer-events-none z-[99999] transform -translate-y-1/2 transition-opacity duration-200"
+            ref={driverPopupRef} // Keep ref for direct DOM manipulation
+            className="fixed pointer-events-none z-[99999] transition-opacity duration-200" // Removed transform from className
             style={{
-              left:
-                hoveredDriver.startX + 40 > window.innerWidth - 300
-                  ? hoveredDriver.startX - 340
-                  : hoveredDriver.startX + 40,
-              top: hoveredDriver.startY,
-            }}
+              transform: `translate3d(${hoveredDriver.startX + 40 > window.innerWidth - 300 ? hoveredDriver.startX - 340 : hoveredDriver.startX + 40}px, ${hoveredDriver.startY}px, 0) translateY(-50%)`,
+            }} // Initial transform for GPU acceleration
           >
             <div className="w-64 h-96 md:w-[300px] md:h-[400px] bg-[#000000] overflow-hidden flex flex-col relative rounded-xl border border-[#e10600]">
               {/* Image Box */}
               <div className="flex-1 flex items-end justify-center relative z-10 ">
                 <img
-                  key={hoveredDriver.name} 
+                  key={hoveredDriver.name}
                   src={getDriverImage(hoveredDriver.name)}
                   alt={hoveredDriver.name}
                   className="w-full h-full object-contain object-bottom filter contrast-125 saturate-110"

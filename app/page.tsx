@@ -218,7 +218,7 @@ export default function Home() {
         overwrite: "auto",
       });
 
-      // 1. Only animate the scale on the heavy background image (Cheap)
+      // 1. Only animate the scale on the background image
       gsap.to(`.bg-${i}`, {
         scale: isHovered ? 1.05 : 1,
         duration: 0.8,
@@ -226,16 +226,16 @@ export default function Home() {
         overwrite: "auto",
       });
 
-      // 2. Animate the opacity of our new black overlay instead of using CSS filters (Extremely Cheap)
+      // 2. Animate the opacity of the black overlay to dim non-hovered items
       gsap.to(`.dimmer-${i}`, {
-        opacity: isOtherHovered ? 0.7 : 0,
+        opacity: isHovered ? 0 : isOtherHovered ? 0.7 : 0,
         duration: 0.8,
         ease: "power4.out",
         overwrite: "auto",
       });
 
       gsap.to(`.glow-${i}`, {
-        opacity: isOtherHovered ? 0.3 : isHovered ? 0.8 : 0.5,
+        opacity: isHovered ? 0.8 : 0.5, // Glow is always visible, but brighter on hover
         duration: 0.5,
         ease: "power4.out",
         overwrite: "auto",
@@ -243,8 +243,7 @@ export default function Home() {
 
       gsap.to(`.logo-container-${i}`, {
         left: `${getLogoCenter(i, targetIndex)}%`,
-        opacity: isHovered ? 1 : 0,
-        filter: isOtherHovered ? "grayscale(0.6)" : "grayscale(0)",
+                opacity: isHovered ? 1 : 0, // Only the hovered logo should be visible
         duration: 0.5,
         ease: "power4.out",
         overwrite: "auto",
@@ -328,8 +327,8 @@ export default function Home() {
               className={`slice slice-${index} absolute top-0 left-0 w-full h-full cursor-pointer z-1 block`}
               style={{
                 clipPath: getClipPath(index, -1),
-                transform: "translateZ(0)",
-                // REMOVED: willChange: "clip-path"
+                willChange: "clip-path",
+                transform: "translateZ(0)", // Force hardware acceleration
               }}
               onMouseEnter={() => handleHover(index)}
               onMouseLeave={() => handleHover(-1)}
@@ -340,17 +339,14 @@ export default function Home() {
                 style={{
                   backgroundImage: `url(${team.bg})`,
                   transform: "scale(1) translateZ(0)",
-                  // REMOVED: willChange: "transform"
+                  willChange: "transform", // Force hardware acceleration
                 }}
               />
 
               {/* Dimmer Box */}
               <div
                 className={`dimmer-${index} absolute inset-0 bg-[#050505] pointer-events-none z-[5]`}
-                style={{
-                  opacity: 0,
-                  // REMOVED: willChange: "opacity"
-                }}
+                style={{ opacity: 0, willChange: "opacity" }}
               />
 
               {/* THE FIX: Hidden on mobile (hidden md:block). Mix-blend-mode melts mobile GPUs. */}
@@ -365,7 +361,7 @@ export default function Home() {
                 style={{
                   background: `linear-gradient(to bottom, ${team.glowColor}, transparent)`,
                   opacity: 0.5,
-                  // REMOVED: willChange: "opacity"
+                  willChange: "opacity",
                 }}
               />
 
@@ -377,15 +373,14 @@ export default function Home() {
                   left: `${getLogoCenter(index, -1)}%`,
                   transform: "translateX(-50%) translateZ(0)",
                   opacity: 0,
-                  filter: "grayscale(0)",
-                  // REMOVED: willChange: "left, opacity, filter"
-                }}
+                  willChange: "left, opacity, transform",
+                }} // Force hardware acceleration for transform
               >
                 <div
                   className={`logo-${index} w-[90px] h-[90px] md:w-[130px] md:h-[130px] flex items-center justify-center relative`}
                   style={{
                     transform: `scale(0.95) translateZ(0)`,
-                    // REMOVED: willChange: "transform"
+                    willChange: "transform", // Force hardware acceleration
                   }}
                 >
                   <Image
