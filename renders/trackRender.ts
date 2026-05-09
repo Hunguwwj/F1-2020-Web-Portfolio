@@ -17,8 +17,6 @@ export class TrackRenderer {
   private mainCurve: THREE.CatmullRomCurve3 | null = null;
   private trailGroup: THREE.Group | null = null;
   private trackCenter: THREE.Vector3 = new THREE.Vector3();
-
-  // NEW: Store the array of trail segments
   private trailMeshes: THREE.Mesh[] = [];
 
   // CACHE: Optimize performance by keeping previously loaded tracks in memory
@@ -60,21 +58,19 @@ export class TrackRenderer {
     // Force the background clear color to be 100% transparent
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.setSize(width, height);
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // Smooths out bright gradients
-    this.renderer.toneMappingExposure = 1.2; // Controls overall brightness
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.2;
     container.appendChild(this.renderer.domElement);
 
-    // By default, EffectComposer drops the alpha channel. We force it to use RGBAFormat.
     const renderTarget = new THREE.WebGLRenderTarget(width, height, {
       format: THREE.RGBAFormat,
       type: THREE.FloatType,
-      samples: 1, // Adds anti-aliasing back to the post-processing pipeline
+      samples: 1, 
     });
 
     // 3. COMPOSER SETUP
     this.composer = new EffectComposer(this.renderer, renderTarget);
     const renderScene = new RenderPass(this.scene, this.camera);
-    // Explicitly tell the RenderPass to keep the background transparent
     renderScene.clearAlpha = 0;
 
     const bloomPass = new UnrealBloomPass(
@@ -90,11 +86,9 @@ export class TrackRenderer {
     this.composer.addPass(bloomPass);
     this.composer.addPass(outputPass);
 
-    container.appendChild(this.renderer.domElement);
     this.trackGroup = new THREE.Group();
     this.scene.add(this.trackGroup);
 
-    // Light for the translucent track
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     this.scene.add(ambientLight);
 
@@ -119,6 +113,7 @@ export class TrackRenderer {
       this.isVisible = entries[0].isIntersecting;
     });
     this.intersectionObserver.observe(container);
+
     this.animate();
   }
 
@@ -160,9 +155,8 @@ export class TrackRenderer {
               profileShape.lineTo(-7.5, 5);
               profileShape.lineTo(-7.5, 0);
 
-              // Using the optimized settings!
               const geometry = new THREE.ExtrudeGeometry(profileShape, {
-                steps: 120,
+                steps: 450,
                 extrudePath: curve,
                 bevelEnabled: false,
               });
@@ -170,7 +164,7 @@ export class TrackRenderer {
                 color: 0xffffff,
                 roughness: 0.8,
                 metalness: 0.2,
-                side: THREE.FrontSide,
+                side: THREE.DoubleSide,
                 transparent: true,
                 opacity: 0.25,
               });
@@ -229,8 +223,6 @@ export class TrackRenderer {
   }
 
   public async loadTrack(url: string) {
-    // If the user clicks a track that hasn't finished preloading yet,
-    // it will safely wait for it to parse on the spot.
     if (!this.trackCache.has(url)) {
       await this.parseAndCacheTrack(url);
     }
@@ -250,23 +242,10 @@ export class TrackRenderer {
     this.trackCenter.copy(cached.trackCenter);
   }
 
-  // 2. The Ghost Loop: Loads the array of tracks invisibly
-  public async preloadAll(urls: string[]) {
-    // Wait 2 seconds so the initial site load/animations aren't interrupted
-    await new Promise((r) => setTimeout(r, 2000));
-
-    for (const url of urls) {
-      if (!this.trackCache.has(url)) {
-        await this.parseAndCacheTrack(url);
-        // CRITICAL: Force the CPU to breathe for 100ms between tracks.
-        // This prevents the browser from dropping frames if the user is scrolling.
-        await new Promise((r) => setTimeout(r, 100));
-      }
-    }
-  }
-
   private animate = () => {
     this.animationId = requestAnimationFrame(this.animate);
+    
+    // Only render when the canvas is physically on the screen
     if (!this.isVisible) return;
 
     // --- ANIMATE THE TRAIL MULTI-SEGMENTS ---
@@ -276,9 +255,8 @@ export class TrackRenderer {
       const gap = 0.002; // Distance between trail particles
 
       this.trailMeshes.forEach((mesh, index) => {
-        // Calculate position for this specific particle in the trail
         let progress = (time * speed - index * gap) % 1.0;
-        if (progress < 0) progress += 1.0; // Loop seamlessly
+        if (progress < 0) progress += 1.0; 
 
         const point = this.mainCurve!.getPointAt(progress);
 
@@ -287,7 +265,6 @@ export class TrackRenderer {
         mesh.position.z = 8.5;
       });
 
-      // Snap the PointLight to the head of the trail (index 0)
       const light = this.trailGroup.children.find(
         (c) => c instanceof THREE.PointLight,
       );
@@ -297,10 +274,10 @@ export class TrackRenderer {
     }
 
     // --- CAMERA ORBIT ---
-    const time = Date.now() * 0.0005;
+    const timeRot = Date.now() * 0.0005;
     const radius = 100;
-    this.camera.position.x = Math.sin(time) * radius;
-    this.camera.position.z = Math.cos(time) * radius;
+    this.camera.position.x = Math.sin(timeRot) * radius;
+    this.camera.position.z = Math.cos(timeRot) * radius;
     this.camera.position.y = 60;
 
     this.camera.lookAt(0, 0, 0);

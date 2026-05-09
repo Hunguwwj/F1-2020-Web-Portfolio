@@ -330,6 +330,7 @@ export default function Home() {
                   fill
                   style={{ objectFit: "cover", objectPosition: "center" }}
                   priority={index < 3}
+                  unoptimized={true}
                   // Add this line to prevent massive data downloads on mobile:
                   sizes="100vw"
                   decoding="async"
