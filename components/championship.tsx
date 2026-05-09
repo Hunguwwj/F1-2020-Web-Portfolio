@@ -109,8 +109,11 @@ export default function Championships() {
 
   const handleDriverEnter = (e: React.MouseEvent, driverName: string) => {
     if (driverPopupRef.current && driverPopupImgRef.current) {
-      // Removed the name ref check
       driverPopupImgRef.current.src = getDriverImage(driverName);
+
+      // THE FIX: Explicitly reset the classes to full size in case the onError shrunk them!
+      driverPopupImgRef.current.className =
+        "w-full h-full object-contain filter contrast-125 saturate-110";
 
       const xOffset =
         e.clientX + 40 > window.innerWidth - 300
@@ -126,19 +129,21 @@ export default function Championships() {
     }
   };
 
+  // --- TEAM HANDLER ---
   const handleTeamEnter = (e: React.MouseEvent, teamName: string) => {
     if (teamPopupRef.current && teamPopupImgRef.current) {
-      // 1. Swap the content instantly
       teamPopupImgRef.current.src = getTeamLogo(teamName);
+      teamPopupImgRef.current.alt = teamName;
 
-      // 2. Snap it to the mouse
+      // THE FIX: Ensure team logos always stay perfectly sized
+      teamPopupImgRef.current.className = "w-3/4 h-3/4 object-contain";
+
       const xOffset =
         e.clientX + 40 > window.innerWidth - 300
           ? e.clientX - 340
           : e.clientX + 40;
       teamPopupRef.current.style.transform = `translate3d(${xOffset}px, ${e.clientY}px, 0) translateY(-50%)`;
 
-      // 3. Fade it in with GSAP
       gsap.to(teamPopupRef.current, {
         autoAlpha: 1,
         duration: 0.2,
@@ -146,7 +151,6 @@ export default function Championships() {
       });
     }
   };
-
   const handleDriverLeave = () => {
     if (driverPopupRef.current) {
       // Fade it out
@@ -258,9 +262,24 @@ export default function Championships() {
     setIsClient(true);
     fetch("/championships2020.json")
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: SeasonData) => {
         setSeasonData(data);
         setLoading(false);
+
+        // --- SILENT IMAGE PRELOADER ---
+        // Waits 1 second after the data loads so it doesn't interrupt the intro animations
+        setTimeout(() => {
+          // Preload Drivers
+          data.drivers.forEach((driver) => {
+            const img = new window.Image();
+            img.src = getDriverImage(driver.name);
+          });
+          // Preload Teams
+          data.constructors.forEach((team) => {
+            const img = new window.Image();
+            img.src = getTeamLogo(team.team);
+          });
+        }, 1000);
       })
       .catch((err) => {
         console.error("Failed to fetch championship data:", err);
@@ -747,14 +766,13 @@ export default function Championships() {
               style={{ transform: `translate3d(0px, 0px, 0)` }}
             >
               <div className="w-64 h-96 md:w-[300px] md:h-[400px] bg-[#000000] overflow-hidden flex flex-col relative rounded-xl border border-[#e10600]">
-                
                 <div className="flex-1 flex items-center justify-center relative z-10 ">
                   <img
                     ref={driverPopupImgRef}
                     src="/Driver/default.png"
                     alt="Driver"
                     decoding="async"
-                    className="w-full h-full object-contain object-contain object-bottom scale-[1.0] origin-bottom"
+                    className="w-full h-full object-contain object-bottom scale-[1.0] origin-bottom"
                     onError={(e) => {
                       e.currentTarget.src = "/logos/F1.svg";
                       e.currentTarget.className =

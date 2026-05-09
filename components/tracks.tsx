@@ -16,9 +16,13 @@ const AnimatedTrack = ({ track }: { track: any }) => {
     if (mountRef.current && !rendererRef.current) {
       rendererRef.current = new TrackRenderer(mountRef.current);
 
-      // NEW: Kick off the silent background preloader
-      const allTrackUrls = tracksData.map((t) => t.image);
-      rendererRef.current.preloadAll(allTrackUrls);
+      // SILENT NETWORK PRELOADER
+      // Downloads SVGs to hard drive cache without locking the CPU
+      setTimeout(() => {
+        tracksData.forEach((t) => {
+          fetch(t.image, { priority: "low" }).catch(() => {});
+        });
+      }, 2000);
     }
 
     return () => {
