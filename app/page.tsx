@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Tracks from "../components/tracks";
 import Championships from "../components/championship";
+import { preloadTeamModel } from "../renders/render";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -17,6 +18,7 @@ const teams = [
     route: "/teams/mercedes",
     logo: "/logos/mercedes.svg",
     glowColor: "rgba(0, 210, 190, 0.6)",
+    modelPath: "/models/mercedes",
   },
   {
     name: "Red Bull",
@@ -24,6 +26,7 @@ const teams = [
     route: "/teams/redbull",
     logo: "/logos/redbull.svg",
     glowColor: "rgba(6, 0, 239, 0.5)",
+    modelPath: "/models/redbull",
   },
   {
     name: "Ferrari",
@@ -31,6 +34,7 @@ const teams = [
     route: "/teams/ferrari",
     logo: "/logos/ferrari.svg",
     glowColor: "rgba(220, 0, 0, 0.6)",
+    modelPath: "/models/ferrari",
   },
   {
     name: "McLaren",
@@ -38,6 +42,7 @@ const teams = [
     route: "/teams/mclaren",
     logo: "/logos/mclaren.svg",
     glowColor: "rgba(255, 135, 0, 0.6)",
+    modelPath: "/models/mclaren",
   },
   {
     name: "Racing Point",
@@ -45,6 +50,7 @@ const teams = [
     route: "/teams/racingpoint",
     logo: "/logos/racingpoint.svg",
     glowColor: "rgba(245, 150, 200, 0.6)",
+    modelPath: "/models/racingpoint",
   },
   {
     name: "Renault",
@@ -52,6 +58,7 @@ const teams = [
     route: "/teams/renault",
     logo: "/logos/renault.svg",
     glowColor: "rgba(255, 212, 0, 0.6)",
+    modelPath: "/models/renault",
   },
   {
     name: "AlphaTauri",
@@ -59,6 +66,7 @@ const teams = [
     route: "/teams/alphatauri",
     logo: "/logos/alphatauri.svg",
     glowColor: "rgba(255, 255, 255, 0.6)",
+    modelPath: "/models/alphatauri",
   },
   {
     name: "Alfa Romeo",
@@ -66,6 +74,7 @@ const teams = [
     route: "/teams/alfaromeo",
     logo: "/logos/alfaromeo.svg",
     glowColor: "rgba(255, 255, 255, 0.5)",
+    modelPath: "/models/alfaromeo",
   },
   {
     name: "Haas F1",
@@ -73,6 +82,7 @@ const teams = [
     route: "/teams/haas",
     logo: "/logos/haas.svg",
     glowColor: "rgba(255, 255, 255, 0.5)",
+    modelPath: "/models/haas",
   },
   {
     name: "Williams",
@@ -80,6 +90,7 @@ const teams = [
     route: "/teams/williams",
     logo: "/logos/williams.svg",
     glowColor: "rgba(0, 160, 222, 0.6)",
+    modelPath: "/models/williams",
   },
 ];
 
@@ -87,7 +98,7 @@ export default function Home() {
   const mainRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLElement>(null);
-  const [hIndex, setHIndex] = useState<number>(-1);
+  const preloadedModels = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     // 1. Tell the browser NOT to restore the previous scroll position
@@ -196,6 +207,13 @@ export default function Home() {
     },
     { scope: mainRef },
   );
+
+  const handlePreload = contextSafe((modelPath?: string) => {
+    if (!modelPath || preloadedModels.current.has(modelPath)) return;
+
+    preloadedModels.current.add(modelPath);
+    preloadTeamModel(modelPath);
+  });
 
   const handleHover = contextSafe((targetIndex: number) => {
     teams.forEach((_, i) => {
@@ -317,7 +335,10 @@ export default function Home() {
               key={index}
               className={`slice slice-${index} absolute top-0 left-0 w-full h-full cursor-pointer z-1 block`}
               style={{ clipPath: getClipPath(index, -1) }}
-              onMouseEnter={() => handleHover(index)}
+              onMouseEnter={() => {
+                handleHover(index);
+                handlePreload(team.modelPath);
+              }}
               onMouseLeave={() => handleHover(-1)}
             >
               {/* FIX: Added bg-{index} */}
