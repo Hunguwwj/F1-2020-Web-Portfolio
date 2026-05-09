@@ -32,9 +32,6 @@ export class TrackRenderer {
   > = new Map();
   private loader = new SVGLoader();
 
-  private isVisible: boolean = true;
-  private intersectionObserver!: IntersectionObserver;
-
   constructor(container: HTMLElement) {
     this.scene = new THREE.Scene();
 
@@ -65,7 +62,7 @@ export class TrackRenderer {
     const renderTarget = new THREE.WebGLRenderTarget(width, height, {
       format: THREE.RGBAFormat,
       type: THREE.FloatType,
-      samples: 1, 
+      samples: 1,
     });
 
     // 3. COMPOSER SETUP
@@ -109,10 +106,6 @@ export class TrackRenderer {
     this.resizeObserver.observe(container);
 
     // Only render when the container is actually on the screen
-    this.intersectionObserver = new IntersectionObserver((entries) => {
-      this.isVisible = entries[0].isIntersecting;
-    });
-    this.intersectionObserver.observe(container);
 
     this.animate();
   }
@@ -244,9 +237,6 @@ export class TrackRenderer {
 
   private animate = () => {
     this.animationId = requestAnimationFrame(this.animate);
-    
-    // Only render when the canvas is physically on the screen
-    if (!this.isVisible) return;
 
     // --- ANIMATE THE TRAIL MULTI-SEGMENTS ---
     if (this.mainCurve && this.trailGroup && this.trailMeshes.length > 0) {
@@ -256,7 +246,7 @@ export class TrackRenderer {
 
       this.trailMeshes.forEach((mesh, index) => {
         let progress = (time * speed - index * gap) % 1.0;
-        if (progress < 0) progress += 1.0; 
+        if (progress < 0) progress += 1.0;
 
         const point = this.mainCurve!.getPointAt(progress);
 
@@ -286,7 +276,6 @@ export class TrackRenderer {
   };
 
   public destroy() {
-    this.intersectionObserver.disconnect();
     if (this.animationId !== null) cancelAnimationFrame(this.animationId);
     this.resizeObserver.disconnect();
 
