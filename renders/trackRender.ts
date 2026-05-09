@@ -22,14 +22,20 @@ export class TrackRenderer {
   private trailMeshes: THREE.Mesh[] = [];
 
   // CACHE: Optimize performance by keeping previously loaded tracks in memory
-  private trackCache: Map<string, {
-    group: THREE.Group;
-    mainCurve: THREE.CatmullRomCurve3 | null;
-    trailGroup: THREE.Group | null;
-    trailMeshes: THREE.Mesh[];
-    trackCenter: THREE.Vector3;
-  }> = new Map();
+  private trackCache: Map<
+    string,
+    {
+      group: THREE.Group;
+      mainCurve: THREE.CatmullRomCurve3 | null;
+      trailGroup: THREE.Group | null;
+      trailMeshes: THREE.Mesh[];
+      trackCenter: THREE.Vector3;
+    }
+  > = new Map();
   private loader = new SVGLoader();
+
+  private isVisible: boolean = true;
+  private intersectionObserver!: IntersectionObserver;
 
   constructor(container: HTMLElement) {
     this.scene = new THREE.Scene();
@@ -54,7 +60,6 @@ export class TrackRenderer {
     // Force the background clear color to be 100% transparent
     this.renderer.setClearColor(0x000000, 0);
     this.renderer.setSize(width, height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping; // Smooths out bright gradients
     this.renderer.toneMappingExposure = 1.2; // Controls overall brightness
     container.appendChild(this.renderer.domElement);
@@ -62,8 +67,8 @@ export class TrackRenderer {
     // By default, EffectComposer drops the alpha channel. We force it to use RGBAFormat.
     const renderTarget = new THREE.WebGLRenderTarget(width, height, {
       format: THREE.RGBAFormat,
-      type: THREE.FloatType, 
-      samples: 4 // Adds anti-aliasing back to the post-processing pipeline
+      type: THREE.FloatType,
+      samples: 1, // Adds anti-aliasing back to the post-processing pipeline
     });
 
     // 3. COMPOSER SETUP
@@ -109,153 +114,160 @@ export class TrackRenderer {
     });
     this.resizeObserver.observe(container);
 
+    // Only render when the container is actually on the screen
+    this.intersectionObserver = new IntersectionObserver((entries) => {
+      this.isVisible = entries[0].isIntersecting;
+    });
+    this.intersectionObserver.observe(container);
     this.animate();
   }
 
-  public loadTrack(url: string) {
-    if (this.trackCache.has(url)) {
-      while (this.trackGroup.children.length > 0) {
-        this.trackGroup.remove(this.trackGroup.children[0]);
-      }
-      
-      const cached = this.trackCache.get(url)!;
-      this.trackGroup.add(cached.group);
-      this.mainCurve = cached.mainCurve;
-      this.trailGroup = cached.trailGroup;
-      this.trailMeshes = cached.trailMeshes;
-      this.trackCenter.copy(cached.trackCenter);
-      return;
-    }
+  private async parseAndCacheTrack(url: string): Promise<void> {
+    if (this.trackCache.has(url)) return;
 
-    this.loader.load(url, (data) => {
-      // 1. HARD RESET
-      while (this.trackGroup.children.length > 0) {
-        this.trackGroup.remove(this.trackGroup.children[0]);
-      }
+    return new Promise((resolve, reject) => {
+      this.loader.load(
+        url,
+        (data) => {
+          const newTrackContainer = new THREE.Group();
+          let mainCurve: THREE.CatmullRomCurve3 | null = null;
+          let maxPoints = 0;
+          const trackCenter = new THREE.Vector3();
+          let trailGroup: THREE.Group | null = null;
+          let trailMeshes: THREE.Mesh[] = [];
 
-      const newTrackContainer = new THREE.Group();
+          // Build the 3D Track Walls
+          data.paths.forEach((path) => {
+            const shapes = SVGLoader.createShapes(path);
+            shapes.forEach((shape) => {
+              const points = shape.getPoints();
+              if (points.length === 0) return;
 
-      this.mainCurve = null;
-      let maxPoints = 0;
+              const curve = new THREE.CatmullRomCurve3(
+                points.map((p) => new THREE.Vector3(p.x, p.y, 0)),
+              );
+              curve.closed = true;
 
-      // 2. BUILD THE 3D TRACK WALLS
-      data.paths.forEach((path) => {
-        const shapes = SVGLoader.createShapes(path);
-        shapes.forEach((shape) => {
-          const points = shape.getPoints();
-          if (points.length === 0) return;
+              if (points.length > maxPoints) {
+                maxPoints = points.length;
+                mainCurve = curve;
+              }
 
-          const curve = new THREE.CatmullRomCurve3(
-            points.map((p) => new THREE.Vector3(p.x, p.y, 0)),
+              const profileShape = new THREE.Shape();
+              profileShape.moveTo(-7.5, 0); // width/2
+              profileShape.lineTo(7.5, 0);
+              profileShape.lineTo(7.5, 5); // height
+              profileShape.lineTo(-7.5, 5);
+              profileShape.lineTo(-7.5, 0);
+
+              // Using the optimized settings!
+              const geometry = new THREE.ExtrudeGeometry(profileShape, {
+                steps: 120,
+                extrudePath: curve,
+                bevelEnabled: false,
+              });
+              const material = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                roughness: 0.8,
+                metalness: 0.2,
+                side: THREE.FrontSide,
+                transparent: true,
+                opacity: 0.25,
+              });
+
+              newTrackContainer.add(new THREE.Mesh(geometry, material));
+            });
+          });
+
+          // Centering & Sizing
+          const box = new THREE.Box3().setFromObject(newTrackContainer);
+          const size = box.getSize(new THREE.Vector3());
+          trackCenter.copy(box.getCenter(new THREE.Vector3()));
+          newTrackContainer.children.forEach((child) =>
+            child.position.sub(trackCenter),
           );
-          curve.closed = true;
 
-          if (points.length > maxPoints) {
-            maxPoints = points.length;
-            this.mainCurve = curve;
+          const targetScale = 80 / Math.max(size.x, size.y, 1);
+
+          // Build the Trail
+          if (mainCurve) {
+            trailGroup = new THREE.Group();
+            for (let i = 0; i < 25; i++) {
+              const scale = Math.max(0.1, 1 - i / 25);
+              const mesh = new THREE.Mesh(
+                new THREE.SphereGeometry((1.0 / targetScale) * scale, 16, 16),
+                new THREE.MeshBasicMaterial({
+                  color: 0xff0000,
+                  transparent: true,
+                  opacity: Math.max(0.01, 1 - i / 25),
+                }),
+              );
+              trailGroup.add(mesh);
+              trailMeshes.push(mesh);
+            }
+            trailGroup.add(new THREE.PointLight(0xffffff, 4, 60 / targetScale));
+            newTrackContainer.add(trailGroup);
           }
 
-          const trackWidth = 15;
-          const trackHeight = 5;
+          newTrackContainer.scale.set(targetScale, targetScale, targetScale);
+          newTrackContainer.rotation.x = -Math.PI / 2;
 
-          const profileShape = new THREE.Shape();
-          profileShape.moveTo(-trackWidth / 2, 0);
-          profileShape.lineTo(trackWidth / 2, 0);
-          profileShape.lineTo(trackWidth / 2, trackHeight);
-          profileShape.lineTo(-trackWidth / 2, trackHeight);
-          profileShape.lineTo(-trackWidth / 2, 0);
-
-          const extrudeSettings = {
-            steps: 600,
-            extrudePath: curve,
-            bevelEnabled: false,
-          };
-
-          const geometry = new THREE.ExtrudeGeometry(
-            profileShape,
-            extrudeSettings,
-          );
-
-          // UPDATED: Translucent White Material
-          const material = new THREE.MeshStandardMaterial({
-            color: 0xffffff, // Changed to White
-            roughness: 0.8, // Smoother for a glass-like look
-            metalness: 0.2, // Higher metalness catches light better
-            side: THREE.DoubleSide,
-            transparent: true, // Enabled Alpha
-            opacity: 0.25, // Reduced Alpha (15% visible)
+          // Save it to memory!
+          this.trackCache.set(url, {
+            group: newTrackContainer,
+            mainCurve,
+            trailGroup,
+            trailMeshes,
+            trackCenter,
           });
-
-          const mesh = new THREE.Mesh(geometry, material);
-          
-          newTrackContainer.add(mesh);
-        });
-      });
-
-      // 3. CENTERING & SIZING
-      const box = new THREE.Box3().setFromObject(newTrackContainer);
-      const size = box.getSize(new THREE.Vector3());
-      const center = box.getCenter(new THREE.Vector3());
-      this.trackCenter.copy(center);
-
-      newTrackContainer.children.forEach((child) => {
-        child.position.sub(center);
-      });
-
-      const maxDim = Math.max(size.x, size.y, 1);
-      const targetScale = 80 / maxDim;
-
-      // 4. CREATE THE FADING TRAIL
-      if (this.mainCurve) {
-        this.trailGroup = new THREE.Group();
-        this.trailMeshes = []; // Reset array
-
-        const orbRadius = 1.0 / targetScale;
-        const trailLength = 25; // How many particles form the trail
-
-        // Generate the trail particles
-        for (let i = 0; i < trailLength; i++) {
-          // Shrink the spheres as they go further back in the trail
-          const scale = Math.max(0.1, 1 - i / trailLength);
-          const geo = new THREE.SphereGeometry(orbRadius * scale, 16, 16);
-
-          // Fade out the opacity as they go back
-          const mat = new THREE.MeshBasicMaterial({
-            color: 0xff0000,
-            transparent: true,
-            opacity: Math.max(0.01, 1 - i / trailLength),
-          });
-
-          const mesh = new THREE.Mesh(geo, mat);
-          this.trailGroup.add(mesh);
-          this.trailMeshes.push(mesh);
-        }
-
-        // Add the point light to illuminate the translucent track below the leader
-        const light = new THREE.PointLight(0xffffff, 4, 60 / targetScale);
-        this.trailGroup.add(light);
-
-        newTrackContainer.add(this.trailGroup);
-      }
-
-      newTrackContainer.scale.set(targetScale, targetScale, targetScale);
-      newTrackContainer.rotation.x = -Math.PI / 2;
-
-      // Cache the constructed track
-      this.trackCache.set(url, {
-        group: newTrackContainer,
-        mainCurve: this.mainCurve,
-        trailGroup: this.trailGroup,
-        trailMeshes: [...this.trailMeshes],
-        trackCenter: this.trackCenter.clone()
-      });
-
-      this.trackGroup.add(newTrackContainer);
+          resolve();
+        },
+        undefined,
+        reject,
+      );
     });
+  }
+
+  public async loadTrack(url: string) {
+    // If the user clicks a track that hasn't finished preloading yet,
+    // it will safely wait for it to parse on the spot.
+    if (!this.trackCache.has(url)) {
+      await this.parseAndCacheTrack(url);
+    }
+
+    // Wipe the old track from the scene
+    while (this.trackGroup.children.length > 0) {
+      this.trackGroup.remove(this.trackGroup.children[0]);
+    }
+
+    // Instantly inject the cached track
+    const cached = this.trackCache.get(url)!;
+    this.trackGroup.add(cached.group);
+
+    this.mainCurve = cached.mainCurve;
+    this.trailGroup = cached.trailGroup;
+    this.trailMeshes = cached.trailMeshes;
+    this.trackCenter.copy(cached.trackCenter);
+  }
+
+  // 2. The Ghost Loop: Loads the array of tracks invisibly
+  public async preloadAll(urls: string[]) {
+    // Wait 2 seconds so the initial site load/animations aren't interrupted
+    await new Promise((r) => setTimeout(r, 2000));
+
+    for (const url of urls) {
+      if (!this.trackCache.has(url)) {
+        await this.parseAndCacheTrack(url);
+        // CRITICAL: Force the CPU to breathe for 100ms between tracks.
+        // This prevents the browser from dropping frames if the user is scrolling.
+        await new Promise((r) => setTimeout(r, 100));
+      }
+    }
   }
 
   private animate = () => {
     this.animationId = requestAnimationFrame(this.animate);
+    if (!this.isVisible) return;
 
     // --- ANIMATE THE TRAIL MULTI-SEGMENTS ---
     if (this.mainCurve && this.trailGroup && this.trailMeshes.length > 0) {
@@ -297,9 +309,10 @@ export class TrackRenderer {
   };
 
   public destroy() {
+    this.intersectionObserver.disconnect();
     if (this.animationId !== null) cancelAnimationFrame(this.animationId);
     this.resizeObserver.disconnect();
-    
+
     // Cleanup cached geometries and materials
     this.trackCache.forEach((cached) => {
       cached.group.traverse((child: any) => {
