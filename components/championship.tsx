@@ -63,6 +63,7 @@ export default function Championships() {
   const [seasonData, setSeasonData] = useState<SeasonData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const imageCacheRef = useRef<HTMLImageElement[]>([]);
   const driverPopupImgRef = useRef<HTMLImageElement>(null);
   const driverPopupNameRef = useRef<HTMLSpanElement>(null);
   const teamPopupImgRef = useRef<HTMLImageElement>(null);
@@ -260,6 +261,7 @@ export default function Championships() {
 
   useEffect(() => {
     setIsClient(true);
+
     fetch("/championships2020.json")
       .then((res) => res.json())
       .then((data: SeasonData) => {
@@ -267,24 +269,28 @@ export default function Championships() {
         setLoading(false);
 
         // --- SILENT IMAGE PRELOADER ---
-        // Waits 1 second after the data loads so it doesn't interrupt the intro animations
         setTimeout(() => {
           // Preload Drivers
           data.drivers.forEach((driver) => {
             const img = new window.Image();
+            img.decoding = "async"; // Tell browser to process off the main thread
             img.src = getDriverImage(driver.name);
+
+            // Force the CPU to uncompress the PNG immediately
+            img.decode().catch(() => {});
+
+            // Lock the fully decoded image in RAM so it's never deleted
+            imageCacheRef.current.push(img);
           });
+
           // Preload Teams
           data.constructors.forEach((team) => {
             const img = new window.Image();
             img.src = getTeamLogo(team.team);
+            imageCacheRef.current.push(img);
           });
         }, 1000);
       })
-      .catch((err) => {
-        console.error("Failed to fetch championship data:", err);
-        setLoading(false);
-      });
   }, []);
 
   useGSAP(
