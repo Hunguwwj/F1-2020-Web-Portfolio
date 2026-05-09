@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Tracks from "../components/tracks";
@@ -13,70 +13,70 @@ gsap.registerPlugin(ScrollTrigger);
 const teams = [
   {
     name: "Mercedes",
-    bg: "/img/1.png",
+    bg: "/img/1.webp",
     route: "/teams/mercedes",
     logo: "/logos/mercedes.svg",
     glowColor: "rgba(0, 210, 190, 0.6)",
   },
   {
     name: "Red Bull",
-    bg: "/img/2.png",
+    bg: "/img/2.webp",
     route: "/teams/redbull",
     logo: "/logos/redbull.svg",
     glowColor: "rgba(6, 0, 239, 0.5)",
   },
   {
     name: "Ferrari",
-    bg: "/img/3.png",
+    bg: "/img/3.webp",
     route: "/teams/ferrari",
     logo: "/logos/ferrari.svg",
     glowColor: "rgba(220, 0, 0, 0.6)",
   },
   {
     name: "McLaren",
-    bg: "/img/4.png",
+    bg: "/img/4.webp",
     route: "/teams/mclaren",
     logo: "/logos/mclaren.svg",
     glowColor: "rgba(255, 135, 0, 0.6)",
   },
   {
     name: "Racing Point",
-    bg: "/img/5.png",
+    bg: "/img/5.webp",
     route: "/teams/racingpoint",
     logo: "/logos/racingpoint.svg",
     glowColor: "rgba(245, 150, 200, 0.6)",
   },
   {
     name: "Renault",
-    bg: "/img/6.png",
+    bg: "/img/6.webp",
     route: "/teams/renault",
     logo: "/logos/renault.svg",
     glowColor: "rgba(255, 212, 0, 0.6)",
   },
   {
     name: "AlphaTauri",
-    bg: "/img/7.png",
+    bg: "/img/7.webp",
     route: "/teams/alphatauri",
     logo: "/logos/alphatauri.svg",
     glowColor: "rgba(255, 255, 255, 0.6)",
   },
   {
     name: "Alfa Romeo",
-    bg: "/img/8.png",
+    bg: "/img/8.webp",
     route: "/teams/alfaromeo",
     logo: "/logos/alfaromeo.svg",
     glowColor: "rgba(255, 255, 255, 0.5)",
   },
   {
     name: "Haas F1",
-    bg: "/img/9.png",
+    bg: "/img/9.webp",
     route: "/teams/haas",
     logo: "/logos/haas.svg",
     glowColor: "rgba(255, 255, 255, 0.5)",
   },
   {
     name: "Williams",
-    bg: "/img/10.png",
+    bg: "/img/10.webp",
     route: "/teams/williams",
     logo: "/logos/williams.svg",
     glowColor: "rgba(0, 160, 222, 0.6)",
@@ -87,6 +87,8 @@ export default function Home() {
   const mainRef = useRef<HTMLElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const aboutRef = useRef<HTMLElement>(null);
+  const [hIndex, setHIndex] = useState<number>(-1);
+
   useEffect(() => {
     // 1. Tell the browser NOT to restore the previous scroll position
     if ("scrollRestoration" in history) {
@@ -98,28 +100,37 @@ export default function Home() {
   const total = teams.length;
   const baseWidth = 100 / total;
   const hoverWidth = 25;
-
+  // 1. We calculate the exact left edge as a raw number first.
   const getClipPath = (index: number, hIndex: number) => {
-    if (hIndex === -1) {
-      return `polygon(${index * baseWidth}% 0%, ${(index + 1) * baseWidth}% 0%, ${(index + 1) * baseWidth}% 100%, ${index * baseWidth}% 100%)`;
-    }
-    const minRestWidth = 5;
-    const idealLeft = hIndex * baseWidth + baseWidth / 2 - hoverWidth / 2;
-    const minLeft = hIndex * minRestWidth;
-    const maxLeft = 100 - hoverWidth - (total - 1 - hIndex) * minRestWidth;
-    const leftEdge = Math.max(minLeft, Math.min(idealLeft, maxLeft));
-    const rightEdge = leftEdge + hoverWidth;
+    let leftEdge = 0;
+    let rightEdge = 0;
 
-    if (index === hIndex) {
-      return `polygon(${leftEdge}% 0%, ${rightEdge}% 0%, ${rightEdge}% 100%, ${leftEdge}% 100%)`;
+    if (hIndex === -1) {
+      leftEdge = index * baseWidth;
+      rightEdge = (index + 1) * baseWidth;
+    } else {
+      const minRestWidth = 5;
+      const idealLeft = hIndex * baseWidth + baseWidth / 2 - hoverWidth / 2;
+      const minLeft = hIndex * minRestWidth;
+      const maxLeft = 100 - hoverWidth - (total - 1 - hIndex) * minRestWidth;
+      const leftEdgeHovered = Math.max(minLeft, Math.min(idealLeft, maxLeft));
+      const rightEdgeHovered = leftEdgeHovered + hoverWidth;
+
+      if (index === hIndex) {
+        leftEdge = leftEdgeHovered;
+        rightEdge = rightEdgeHovered;
+      } else if (index < hIndex) {
+        const wL = leftEdgeHovered / hIndex;
+        leftEdge = index * wL;
+        rightEdge = (index + 1) * wL;
+      } else {
+        const wR = (100 - rightEdgeHovered) / (total - 1 - hIndex);
+        leftEdge = rightEdgeHovered + (index - hIndex - 1) * wR;
+        rightEdge = leftEdge + wR;
+      }
     }
-    if (index < hIndex) {
-      const wL = leftEdge / hIndex;
-      return `polygon(${index * wL}% 0%, ${(index + 1) * wL}% 0%, ${(index + 1) * wL}% 100%, ${index * wL}% 100%)`;
-    }
-    const wR = (100 - rightEdge) / (total - 1 - hIndex);
-    const offset = rightEdge + (index - hIndex - 1) * wR;
-    return `polygon(${offset}% 0%, ${offset + wR}% 0%, ${offset + wR}% 100%, ${offset}% 100%)`;
+
+    return `polygon(${leftEdge}% 0%, ${rightEdge}% 0%, ${rightEdge}% 100%, ${leftEdge}% 100%)`;
   };
 
   const getLogoCenter = (index: number, hIndex: number) => {
@@ -146,23 +157,9 @@ export default function Home() {
 
   const { contextSafe } = useGSAP(
     () => {
-      // 1. Smooth GSAP Entrance Animation
-      gsap.fromTo(
-        ".slice",
-        { y: "5vh", opacity: 0 },
-        {
-          y: "0vh",
-          opacity: 1,
-          duration: 1.2,
-          stagger: 0.05,
-          ease: "power3.out",
-          overwrite: "auto",
-        },
-      );
-
-      // 2. Topbar Hide & Reveal Logic
+      // Topbar Hide & Reveal Logic
       const topbar = document.getElementById("f1-topbar");
-      let trigger: ScrollTrigger | null = null; // Store a reference to the trigger
+      let trigger: ScrollTrigger | null = null;
 
       if (topbar) {
         gsap.set(topbar, {
@@ -193,19 +190,13 @@ export default function Home() {
           },
         });
       }
-
-      // 3. CLEANUP FUNCTION
-      // This runs automatically when the component unmounts (navigating away)
       return () => {
-        if (trigger) {
-          trigger.kill(); // Destroys the ScrollTrigger, preventing memory leaks
-        }
+        if (trigger) trigger.kill();
       };
     },
     { scope: mainRef },
   );
 
-  // OPTIMIZED HOVER: Uses GSAP class selectors instead of React Refs to prevent memory leaks during page transitions.
   const handleHover = contextSafe((targetIndex: number) => {
     teams.forEach((_, i) => {
       const isHovered = targetIndex === i;
@@ -218,24 +209,18 @@ export default function Home() {
         overwrite: "auto",
       });
 
-      // 1. Only animate the scale on the background image
-      gsap.to(`.bg-${i}`, {
-        scale: isHovered ? 1.05 : 1,
-        duration: 0.8,
-        ease: "power4.out",
-        overwrite: "auto",
-      });
+      // BACKGROUND SCALE ANIMATION IS GONE.
+      // The images will remain perfectly locked and seamless.
 
-      // 2. Animate the opacity of the black overlay to dim non-hovered items
       gsap.to(`.dimmer-${i}`, {
-        opacity: isHovered ? 0 : isOtherHovered ? 0.7 : 0,
+        autoAlpha: isOtherHovered ? 0.7 : 0, // <--- MAGIC HERE
         duration: 0.8,
         ease: "power4.out",
         overwrite: "auto",
       });
 
       gsap.to(`.glow-${i}`, {
-        opacity: isHovered ? 0.8 : 0.5, // Glow is always visible, but brighter on hover
+        opacity: isHovered ? 0.8 : 0.5,
         duration: 0.5,
         ease: "power4.out",
         overwrite: "auto",
@@ -243,8 +228,8 @@ export default function Home() {
 
       gsap.to(`.logo-container-${i}`, {
         left: `${getLogoCenter(i, targetIndex)}%`,
-                opacity: isHovered ? 1 : 0, // Only the hovered logo should be visible
-        duration: 0.5,
+        opacity: isHovered ? 1 : 0,
+        duration: 0.8,
         ease: "power4.out",
         overwrite: "auto",
       });
@@ -286,18 +271,22 @@ export default function Home() {
         const block = el.querySelector(".about-block");
         const content = el.querySelector(".about-content");
         if (block && content) {
-          gsap.set(block, { width: "0%", left: "0%" });
+          // Set initial scale to 0, anchored to the left
+          gsap.set(block, {
+            scaleX: 0,
+            transformOrigin: "left",
+            width: "100%",
+            left: 0,
+          });
 
-          // Start the first wipe slightly before the line finishes drawing
           const pos = index === 0 ? "-=0.2" : "-=0.3";
 
-          tl.to(
-            block,
-            { width: "100%", duration: 0.2, ease: "power4.inOut" },
-            pos,
-          )
+          tl.to(block, { scaleX: 1, duration: 0.2, ease: "power4.inOut" }, pos)
             .set(content, { opacity: 1 })
-            .to(block, { left: "100%", duration: 0.2, ease: "power4.inOut" });
+            // Instantly flip the anchor to the right side
+            .set(block, { transformOrigin: "right" })
+            // Shrink it away to the right
+            .to(block, { scaleX: 0, duration: 0.2, ease: "power4.inOut" });
         }
       });
 
@@ -313,7 +302,9 @@ export default function Home() {
   );
 
   return (
+    // FIX: Attached mainRef so GSAP knows its scope boundaries
     <main ref={mainRef} className="w-full relative bg-[#0a0a0a]">
+      {/* FIX: Attached heroRef so ScrollTrigger knows where to fire */}
       <div
         id="hero"
         ref={heroRef}
@@ -325,63 +316,51 @@ export default function Home() {
               href={team.route}
               key={index}
               className={`slice slice-${index} absolute top-0 left-0 w-full h-full cursor-pointer z-1 block`}
-              style={{
-                clipPath: getClipPath(index, -1),
-                willChange: "clip-path",
-                transform: "translateZ(0)", // Force hardware acceleration
-              }}
+              style={{ clipPath: getClipPath(index, -1) }}
               onMouseEnter={() => handleHover(index)}
               onMouseLeave={() => handleHover(-1)}
             >
-              {/* Background Image Layer */}
+              {/* FIX: Added bg-{index} */}
               <div
-                className={`slice-bg bg-${index} absolute top-0 left-0 w-screen h-screen bg-cover bg-center bg-no-repeat`}
-                style={{
-                  backgroundImage: `url(${team.bg})`,
-                  transform: "scale(1) translateZ(0)",
-                  willChange: "transform", // Force hardware acceleration
-                }}
+                className={`bg-${index} absolute top-0 left-0 w-screen h-screen`}
+              >
+                <Image
+                  src={team.bg}
+                  alt={team.name}
+                  fill
+                  style={{ objectFit: "cover", objectPosition: "center" }}
+                  priority={index < 3}
+                  // Add this line to prevent massive data downloads on mobile:
+                  sizes="100vw"
+                  decoding="async"
+                  quality={85}
+                />
+              </div>
+
+              {/* FIX: Added dimmer-{index} and default opacity-0 */}
+              <div
+                className={`dimmer-${index} absolute inset-0 bg-[#050505] pointer-events-none z-[5] invisible`}
               />
 
-              {/* Dimmer Box */}
+              {/* FIX: Added glow-{index}, background inline style, and default opacity-50 */}
               <div
-                className={`dimmer-${index} absolute inset-0 bg-[#050505] pointer-events-none z-[5]`}
-                style={{ opacity: 0, willChange: "opacity" }}
-              />
-
-              {/* THE FIX: Hidden on mobile (hidden md:block). Mix-blend-mode melts mobile GPUs. */}
-              <div className="slice-tint hidden md:block absolute inset-0 mix-blend-overlay opacity-60 pointer-events-none z-[6]" />
-
-              {/* Gradient Overlay */}
-              <div className="absolute inset-0 pointer-events-none z-[10] bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
-
-              {/* Glow Layer */}
-              <div
-                className={`glow-${index} absolute top-0 left-0 w-full h-[60vh] pointer-events-none z-20`}
+                className={`glow-${index} absolute top-0 left-0 w-full h-[60vh] pointer-events-none z-20 opacity-50`}
                 style={{
                   background: `linear-gradient(to bottom, ${team.glowColor}, transparent)`,
-                  opacity: 0.5,
-                  willChange: "opacity",
                 }}
               />
 
-              {/* Logo Container */}
+              {/* FIX: Added logo-container-{index} and default left positioning */}
               <div
-                className={`team-logo-container logo-container-${index} absolute top-[15%] flex items-center justify-center z-30 pointer-events-none`}
+                className={`logo-container-${index} absolute top-[15%] flex items-center justify-center z-30 pointer-events-none`}
                 style={{
-                  height: "110px",
                   left: `${getLogoCenter(index, -1)}%`,
-                  transform: "translateX(-50%) translateZ(0)",
-                  opacity: 0,
-                  willChange: "left, opacity, transform",
-                }} // Force hardware acceleration for transform
+                  transform: "translateX(-50%)",
+                }}
               >
+                {/* FIX: Added logo-{index} */}
                 <div
                   className={`logo-${index} w-[90px] h-[90px] md:w-[130px] md:h-[130px] flex items-center justify-center relative`}
-                  style={{
-                    transform: `scale(0.95) translateZ(0)`,
-                    willChange: "transform", // Force hardware acceleration
-                  }}
                 >
                   <Image
                     src={team.logo}
@@ -525,33 +504,43 @@ export default function Home() {
       </div>
 
       {/* NEW: FOOTER AS A MASSIVE BUTTON WITH PERFECT LAYOUT PACING */}
+      {/* NEW: FOOTER AS A MASSIVE BUTTON WITH PERFECT LAYOUT PACING */}
       <footer
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         className="group w-full h-[160px] bg-[#000000] border-t border-white/10 py-8 px-6 md:px-[50px] flex justify-center relative z-20 overflow-hidden cursor-pointer"
       >
-        {/* THE STEEP CONTINUOUS CHEVRON PATTERN (Comfortable 15s speed) */}
         <style>{`
-            @keyframes scrollContinuousChevron {
-              from { background-position: center 0px; }
-              to { background-position: center -1600px; } 
-            }
-            .animate-continuous-chevron {
-              background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M0,0 L50,-50 L100,0 L100,6.25 L50,-43.75 L0,6.25 Z M0,12.5 L50,-37.5 L100,12.5 L100,18.75 L50,-31.25 L0,18.75 Z M0,25 L50,-25 L100,25 L100,31.25 L50,-18.75 L0,31.25 Z M0,37.5 L50,-12.5 L100,37.5 L100,43.75 L50,-6.25 L0,43.75 Z M0,50 L50,0 L100,50 L100,56.25 L50,6.25 L0,56.25 Z M0,62.5 L50,12.5 L100,62.5 L100,68.75 L50,18.75 L0,68.75 Z M0,75 L50,25 L100,75 L100,81.25 L50,31.25 L0,81.25 Z M0,87.5 L50,37.5 L100,87.5 L100,93.75 L50,43.75 L0,93.75 Z M0,100 L50,50 L100,100 L100,106.25 L50,56.25 L0,106.25 Z M0,112.5 L50,62.5 L100,112.5 L100,118.75 L50,68.75 L0,118.75 Z M0,125 L50,75 L100,125 L100,131.25 L50,81.25 L0,131.25 Z M0,137.5 L50,87.5 L100,137.5 L100,143.75 L50,93.75 L0,143.75 Z' fill='%23ffffff'/%3E%3C/svg%3E");
-              background-size: 200vw 1600px; 
-              background-repeat: repeat-y; 
-              
-              animation: scrollContinuousChevron 45s linear infinite; 
-              animation-play-state: paused;
-              transform: translateZ(0);
-            }
-          .group:hover .animate-continuous-chevron {
-              /* Only run the heavy animation when the user actually hovers */
-              animation-play-state: running;
-            }
-          `}</style>
+          @keyframes scrollContinuousChevron {
+            from { transform: translateY(0px); }
+            to { transform: translateY(-1600px); } 
+          }
+          .animate-continuous-chevron {
+            /* The full SVG string is restored! */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M0,0 L50,-50 L100,0 L100,6.25 L50,-43.75 L0,6.25 Z M0,12.5 L50,-37.5 L100,12.5 L100,18.75 L50,-31.25 L0,18.75 Z M0,25 L50,-25 L100,25 L100,31.25 L50,-18.75 L0,31.25 Z M0,37.5 L50,-12.5 L100,37.5 L100,43.75 L50,-6.25 L0,43.75 Z M0,50 L50,0 L100,50 L100,56.25 L50,6.25 L0,56.25 Z M0,62.5 L50,12.5 L100,62.5 L100,68.75 L50,18.75 L0,68.75 Z M0,75 L50,25 L100,75 L100,81.25 L50,31.25 L0,81.25 Z M0,87.5 L50,37.5 L100,87.5 L100,93.75 L50,43.75 L0,93.75 Z M0,100 L50,50 L100,100 L100,106.25 L50,56.25 L0,106.25 Z M0,112.5 L50,62.5 L100,112.5 L100,118.75 L50,68.75 L0,118.75 Z M0,125 L50,75 L100,125 L100,131.25 L50,81.25 L0,131.25 Z M0,137.5 L50,87.5 L100,137.5 L100,143.75 L50,93.75 L0,143.75 Z' fill='%23ffffff'/%3E%3C/svg%3E");
+            background-size: 200vw 1600px; 
+            background-repeat: repeat-y; 
+            background-position: center top; 
+            
+            /* Give it 1600px of extra height so it can slide upwards seamlessly */
+            height: calc(100% + 1600px);
+            width: 100%;
+            top: 0;
+            left: 0;
+            position: absolute;
+            
+            /* Animate the transform property so the GPU handles it */
+            animation: scrollContinuousChevron 45s linear infinite; 
+            animation-play-state: paused;
+            will-change: transform; 
+          }
+          /* Standard CSS hover targets the child class */
+          footer:hover .animate-continuous-chevron {
+            animation-play-state: running;
+          }
+        `}</style>
 
         {/* THE PATTERN LAYER */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-in-out z-0 pointer-events-none animate-continuous-chevron" />
+        <div className="absolute top-0 left-0 w-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-in-out z-0 pointer-events-none animate-continuous-chevron" />
 
         {/* CONTENT WRAPPER: 3-Column Layout with items-end to lock baselines */}
         <div className="w-full max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-center md:items-end gap-12 md:gap-4 relative z-10 mix-blend-difference pointer-events-none">

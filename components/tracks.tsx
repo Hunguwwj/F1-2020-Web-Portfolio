@@ -15,7 +15,12 @@ const AnimatedTrack = ({ track }: { track: any }) => {
   useEffect(() => {
     if (mountRef.current && !rendererRef.current) {
       rendererRef.current = new TrackRenderer(mountRef.current);
+
+      // NEW: Kick off the silent background preloader
+      const allTrackUrls = tracksData.map((t) => t.image);
+      rendererRef.current.preloadAll(allTrackUrls);
     }
+
     return () => {
       if (rendererRef.current) {
         rendererRef.current.destroy();
@@ -26,6 +31,7 @@ const AnimatedTrack = ({ track }: { track: any }) => {
 
   useEffect(() => {
     if (rendererRef.current && track?.image) {
+      // Because loadTrack is now an async function, we just call it
       rendererRef.current.loadTrack(track.image);
     }
   }, [track?.image]);
@@ -277,7 +283,6 @@ export default function Tracks() {
       });
     };
 
-    scroller.addEventListener("wheel", handleWheel, { passive: false });
     return () => scroller.removeEventListener("wheel", handleWheel);
   }, []);
   useGSAP(
@@ -333,7 +338,12 @@ export default function Tracks() {
         const block = el.querySelector(".info-block");
         const content = el.querySelector(".info-content");
         if (block && content) {
-          applyBlockReveal(block, content, index === 0 ? "-=0.1" : "-=0.3", tlHeader);
+          applyBlockReveal(
+            block,
+            content,
+            index === 0 ? "-=0.1" : "-=0.3",
+            tlHeader,
+          );
         }
       });
 

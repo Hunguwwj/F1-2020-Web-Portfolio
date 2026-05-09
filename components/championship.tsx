@@ -63,6 +63,10 @@ export default function Championships() {
   const [seasonData, setSeasonData] = useState<SeasonData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
+  const driverPopupImgRef = useRef<HTMLImageElement>(null);
+  const driverPopupNameRef = useRef<HTMLSpanElement>(null);
+  const teamPopupImgRef = useRef<HTMLImageElement>(null);
+  // 2. Team Refs
 
   // 1. Only store the initial mount coordinates to prevent thrashing
   const [hoveredTeam, setHoveredTeam] = useState<{
@@ -100,6 +104,68 @@ export default function Championships() {
           : e.clientX + 40;
       // Using translate3d for GPU acceleration and translateY(-50%) for vertical centering
       driverPopupRef.current.style.transform = `translate3d(${xOffset}px, ${e.clientY}px, 0) translateY(-50%)`;
+    }
+  };
+
+  const handleDriverEnter = (e: React.MouseEvent, driverName: string) => {
+    if (driverPopupRef.current && driverPopupImgRef.current) {
+      // Removed the name ref check
+      driverPopupImgRef.current.src = getDriverImage(driverName);
+
+      const xOffset =
+        e.clientX + 40 > window.innerWidth - 300
+          ? e.clientX - 340
+          : e.clientX + 40;
+      driverPopupRef.current.style.transform = `translate3d(${xOffset}px, ${e.clientY}px, 0) translateY(-50%)`;
+
+      gsap.to(driverPopupRef.current, {
+        autoAlpha: 1,
+        duration: 0.2,
+        overwrite: "auto",
+      });
+    }
+  };
+
+  const handleTeamEnter = (e: React.MouseEvent, teamName: string) => {
+    if (teamPopupRef.current && teamPopupImgRef.current) {
+      // 1. Swap the content instantly
+      teamPopupImgRef.current.src = getTeamLogo(teamName);
+
+      // 2. Snap it to the mouse
+      const xOffset =
+        e.clientX + 40 > window.innerWidth - 300
+          ? e.clientX - 340
+          : e.clientX + 40;
+      teamPopupRef.current.style.transform = `translate3d(${xOffset}px, ${e.clientY}px, 0) translateY(-50%)`;
+
+      // 3. Fade it in with GSAP
+      gsap.to(teamPopupRef.current, {
+        autoAlpha: 1,
+        duration: 0.2,
+        overwrite: "auto",
+      });
+    }
+  };
+
+  const handleDriverLeave = () => {
+    if (driverPopupRef.current) {
+      // Fade it out
+      gsap.to(driverPopupRef.current, {
+        autoAlpha: 0,
+        duration: 0.2,
+        overwrite: "auto",
+      });
+    }
+  };
+
+  const handleTeamLeave = () => {
+    if (teamPopupRef.current) {
+      // Fade it out
+      gsap.to(teamPopupRef.current, {
+        autoAlpha: 0,
+        duration: 0.2,
+        overwrite: "auto",
+      });
     }
   };
 
@@ -500,15 +566,9 @@ export default function Championships() {
 
                     <div
                       className="row-content opacity-0 flex items-center justify-between py-4 px-4 transition-colors duration-200 hover:bg-[#e10600] group relative z-20 cursor-pointer pointer-events-auto"
-                      onMouseEnter={(e) =>
-                        setHoveredDriver({
-                          name: driver.name,
-                          startX: e.clientX,
-                          startY: e.clientY,
-                        })
-                      }
+                      onMouseEnter={(e) => handleDriverEnter(e, driver.name)}
                       onMouseMove={handleDriverMouseMove}
-                      onMouseLeave={() => setHoveredDriver(null)}
+                      onMouseLeave={handleDriverLeave}
                     >
                       <div className="flex items-center gap-4 md:gap-8 flex-1 overflow-hidden">
                         <div className="relative tracking-wide font-akira text-2xl md:text-4xl text-white/50 group-hover:text-black italic w-10 md:w-16 flex-shrink-0">
@@ -573,15 +633,9 @@ export default function Championships() {
 
                     <div
                       className="row-content opacity-0 flex items-center justify-between py-4 px-4 transition-colors duration-200 hover:bg-[#e10600] group relative z-20 cursor-pointer pointer-events-auto"
-                      onMouseEnter={(e) =>
-                        setHoveredTeam({
-                          name: team.team,
-                          startX: e.clientX,
-                          startY: e.clientY,
-                        })
-                      }
+                      onMouseEnter={(e) => handleTeamEnter(e, team.team)}
                       onMouseMove={handleTeamMouseMove}
-                      onMouseLeave={() => setHoveredTeam(null)}
+                      onMouseLeave={handleTeamLeave}
                     >
                       <div className="flex items-center gap-4 md:gap-8 flex-1 overflow-hidden">
                         <div className="relative tracking-wide font-akira text-2xl md:text-4xl text-white/40 group-hover:text-black italic w-10 md:w-16 flex-shrink-0">
@@ -664,64 +718,54 @@ export default function Championships() {
         </div>
       </div>
 
-      {/* MASSIVE TEAM POPUP */}
+      {/* MASSIVE PERMANENT POPUPS */}
       {isClient &&
-        hoveredTeam &&
         createPortal(
-          <div
-            ref={teamPopupRef} // Keep ref for direct DOM manipulation
-            className="fixed pointer-events-none z-[99999] transition-opacity duration-200" // Removed transform from className
-            style={{
-              transform: `translate3d(${hoveredTeam.startX + 40 > window.innerWidth - 300 ? hoveredTeam.startX - 340 : hoveredTeam.startX + 40}px, ${hoveredTeam.startY}px, 0) translateY(-50%)`,
-            }} // Initial transform for GPU acceleration
-          >
-            <div className="w-64 h-96 md:w-[300px] md:h-[200px] bg-[#000000] rounded-xl border border-[#e10600] flex flex-col items-center justify-center p-8 relative overflow-hidden">
-              <img
-                src={getTeamLogo(hoveredTeam.name)}
-                alt={hoveredTeam.name}
-                className="w-3/4 h-3/4 object-contain"
-              />
-              <div className="absolute bottom-0 left-0 w-full h-2 bg-[#e10600]"></div>
-            </div>
-          </div>,
-          document.body,
-        )}
-
-      {/* MASSIVE DRIVER POPUP */}
-      {isClient &&
-        hoveredDriver &&
-        createPortal(
-          <div
-            ref={driverPopupRef} // Keep ref for direct DOM manipulation
-            className="fixed pointer-events-none z-[99999] transition-opacity duration-200" // Removed transform from className
-            style={{
-              transform: `translate3d(${hoveredDriver.startX + 40 > window.innerWidth - 300 ? hoveredDriver.startX - 340 : hoveredDriver.startX + 40}px, ${hoveredDriver.startY}px, 0) translateY(-50%)`,
-            }} // Initial transform for GPU acceleration
-          >
-            <div className="w-64 h-96 md:w-[300px] md:h-[400px] bg-[#000000] overflow-hidden flex flex-col relative rounded-xl border border-[#e10600]">
-              {/* Image Box */}
-              <div className="flex-1 flex items-end justify-center relative z-10 ">
+          <>
+            {/* TEAM POPUP (unchanged) */}
+            <div
+              ref={teamPopupRef}
+              className="fixed pointer-events-none z-[99999] opacity-0 invisible"
+              style={{ transform: `translate3d(0px, 0px, 0)` }}
+            >
+              <div className="w-64 h-48 md:w-[300px] md:h-[200px] bg-[#000000] rounded-xl border border-[#e10600] flex flex-col items-center justify-center p-8 relative overflow-hidden">
                 <img
-                  key={hoveredDriver.name}
-                  src={getDriverImage(hoveredDriver.name)}
-                  alt={hoveredDriver.name}
-                  className="w-full h-full object-contain object-bottom filter contrast-125 saturate-110"
-                  onError={(e) => {
-                    e.currentTarget.src = "/logos/F1.svg";
-                    e.currentTarget.className =
-                      "w-1/2 h-1/2 object-contain opacity-40 mb-10";
-                  }}
+                  ref={teamPopupImgRef}
+                  src="/logos/F1.svg"
+                  alt="Team Logo"
+                  decoding="async"
+                  className="w-3/4 h-3/4 object-contain"
                 />
+                <div className="absolute bottom-0 left-0 w-full h-2 bg-[#e10600]"></div>
               </div>
-              {/* Name Box */}
-              <div className="w-full bg-[#1a1a1a] py-4 md:py-6 text-center z-20">
-                <span className="text-white font-akira text-sm md:text-xl uppercase tracking-wider">
-                  {hoveredDriver.name}
-                </span>
-              </div>
-              <div className="absolute bottom-0 left-0 w-full h-2 bg-[#e10600] z-20"></div>
             </div>
-          </div>,
+
+            {/* DRIVER POPUP (DESIGN UPDATES APPLIED) */}
+            <div
+              ref={driverPopupRef}
+              className="fixed pointer-events-none z-[99999] opacity-0 invisible"
+              style={{ transform: `translate3d(0px, 0px, 0)` }}
+            >
+              <div className="w-64 h-96 md:w-[300px] md:h-[400px] bg-[#000000] overflow-hidden flex flex-col relative rounded-xl border border-[#e10600]">
+                
+                <div className="flex-1 flex items-center justify-center relative z-10 ">
+                  <img
+                    ref={driverPopupImgRef}
+                    src="/Driver/default.png"
+                    alt="Driver"
+                    decoding="async"
+                    className="w-full h-full object-contain object-contain object-bottom scale-[1.0] origin-bottom"
+                    onError={(e) => {
+                      e.currentTarget.src = "/logos/F1.svg";
+                      e.currentTarget.className =
+                        "w-1/2 h-1/2 object-contain opacity-40";
+                    }}
+                  />
+                </div>
+                <div className="absolute bottom-0 left-0 w-full h-2 bg-[#e10600] z-20"></div>
+              </div>
+            </div>
+          </>,
           document.body,
         )}
     </div>
