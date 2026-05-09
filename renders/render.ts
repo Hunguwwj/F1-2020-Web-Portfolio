@@ -36,19 +36,32 @@ export interface SceneConfig {
   ambientIntensity?: number;
 }
 
-// 🚨 THE FIX: Singleton Loaders placed OUTSIDE the class.
-// This prevents Web Workers from infinitely multiplying and crashing the tab.
+// 1. GLOBAL LOADERS & CACHE (Prevents Web Worker duplication)
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath("../models/draco/");
 const gltfLoader = new GLTFLoader();
 gltfLoader.setDRACOLoader(dracoLoader);
 
+// Store the Promise so rapid hovers don't trigger multiple downloads
+const gltfCache = new Map<string, Promise<any>>();
+
+export const preloadTeamModel = (modelPath: string): Promise<any> => {
+  if (gltfCache.has(modelPath)) return gltfCache.get(modelPath)!;
+
+  const promise = new Promise((resolve, reject) => {
+    gltfLoader.load(modelPath, resolve, undefined, reject);
+  });
+
+  gltfCache.set(modelPath, promise);
+  return promise;
+};
+
 export class SceneManager {
-  // === FIX: Circuit breaker flag ===
   public isDestroyed: boolean = false;
 
   public renderer: THREE.WebGPURenderer;
   private renderPipeline: THREE.RenderPipeline;
+  private container: HTMLElement;
   private Mouse: THREE.Vector2;
   private previousMouse: THREE.Vector2;
   private targetVelocity: THREE.Vector2;
@@ -65,8 +78,10 @@ export class SceneManager {
 
   private config: SceneConfig;
 
-  constructor(container: HTMLElement, config: SceneConfig) {
+  // React Strict Mode Fix: Accept both the canvas and the container
+  constructor(canvas: HTMLCanvasElement, container: HTMLElement, config: SceneConfig) {
     this.config = config;
+    this.container = container;
     this.scene = new THREE.Scene();
 
     this.camera = new THREE.PerspectiveCamera(
@@ -76,17 +91,21 @@ export class SceneManager {
       1000,
     );
 
+    // FIX: Lock camera and light to the cinematic start position immediately to prevent "flash"
+    this.camera.position.set(-5, 0.7, 8);
+    this.camera.rotation.set(0, -Math.PI / 2, 0);
+
     this.renderer = new THREE.WebGPURenderer({
+      canvas: canvas,
       antialias: true,
       alpha: true,
     });
     this.renderer.setSize(container.clientWidth, container.clientHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setClearAlpha(0);
 
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-    container.appendChild(this.renderer.domElement);
 
     const ambColor = this.config.ambientLightColor ?? 0xffffff;
     const ambIntensity = this.config.ambientIntensity ?? 0.05;
@@ -95,6 +114,7 @@ export class SceneManager {
     const dirColor = this.config.lightColor ?? 0xffffff;
     this.light = new THREE.DirectionalLight(dirColor);
     this.light.intensity = this.config.lightIntensity ?? 3.0;
+    this.light.position.set(0, 3, 0); 
     this.scene.add(this.light);
 
     this.light.castShadow = true;
@@ -111,39 +131,6 @@ export class SceneManager {
     this.light.shadow.camera.far = 50;
 
     this.scene.add(this.light.target);
-
-    // 🚨 THE FIX: Use the global gltfLoader here
-    gltfLoader.load(this.config.modelPath, (car) => {
-      // Prevent orphaned models from leaking VRAM if downloaded after leaving page
-      if (this.isDestroyed) {
-        car.scene.traverse((child: any) => {
-          if (child.isMesh) {
-            if (child.geometry) child.geometry.dispose();
-            if (child.material) {
-              if (Array.isArray(child.material)) {
-                child.material.forEach((mat: any) =>
-                  this.disposeMaterialAssets(mat),
-                );
-              } else {
-                this.disposeMaterialAssets(child.material);
-              }
-            }
-          }
-        });
-        return;
-      }
-
-      car.scene.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-      this.mesh = car.scene;
-      this.scene.add(car.scene);
-
-      this.light.shadow.needsUpdate = true;
-    });
 
     const geometry = new THREE.PlaneGeometry(20, 20);
     geometry.rotateX(-Math.PI / 2);
@@ -199,10 +186,8 @@ export class SceneManager {
     this.crVelocity = new THREE.Vector2(0, 0);
     this.crMousePos = new THREE.Vector2(0, 0);
 
-    document.addEventListener("mousemove", (e) => {
-      this.Mouse.x = e.clientX / container.clientWidth;
-      this.Mouse.y = e.clientY / container.clientHeight;
-    });
+    window.addEventListener("resize", this.handleResize);
+    document.addEventListener("mousemove", this.handleMouseMove);
 
     this.renderPipeline = new THREE.RenderPipeline(this.renderer);
     this.renderPipeline.outputColorTransform = false;
@@ -255,58 +240,47 @@ export class SceneManager {
     this.renderPipeline.outputNode = vec4(outputPass, adjustPass.a);
   }
 
-  async init() {
+  private handleMouseMove = (e: MouseEvent) => {
+    this.Mouse.x = e.clientX / this.container.clientWidth;
+    this.Mouse.y = e.clientY / this.container.clientHeight;
+  };
+
+  private handleResize = () => {
+    if (!this.container) return;
+    this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+  };
+
+  public async loadModel(): Promise<void> {
     try {
-      await this.renderer.init();
-
-      // If destroyed while waiting for the GPU to initialize, dump the new device immediately!
-      if (this.isDestroyed) {
-        if (this.renderer && typeof this.renderer.dispose === "function") {
-          this.renderer.dispose();
-        }
-        return;
-      }
-
-      await this.renderer.compileAsync(this.scene, this.camera);
+      // Wait for the Promise from the global cache
+      const gltf = await preloadTeamModel(this.config.modelPath);
       if (this.isDestroyed) return;
 
-      this.animate();
+      // Clone so multiple visits don't share identical mesh references
+      const clonedScene = gltf.scene.clone();
+
+      clonedScene.traverse((child: any) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+
+      this.mesh = clonedScene;
+      this.scene.add(clonedScene);
+      this.light.shadow.needsUpdate = true;
+
+      // FIX: Generate the heavy contact shadow EXACTLY ONCE here
+      this.generateContactShadow();
+
     } catch (error) {
-      console.warn("WebGPU initialization aborted:", error);
+      console.error("Failed to load model", error);
     }
   }
 
-  private time = new THREE.Timer();
-  private animationId: number | null = null;
-
-  private animate = () => {
-    // Instantly reject render calls if context is destroyed
-    if (this.isDestroyed) return;
-
-    this.animationId = requestAnimationFrame(this.animate);
-    this.time.update();
-
-    this.light.shadow.camera.up.set(0, 0, 1);
-    this.light.updateMatrixWorld();
-    this.light.target.updateMatrixWorld();
-
-    this.light.shadow.camera.position.setFromMatrixPosition(
-      this.light.matrixWorld,
-    );
-
-    const targetPosition = new THREE.Vector3();
-    targetPosition.setFromMatrixPosition(this.light.target.matrixWorld);
-
-    this.light.shadow.camera.lookAt(targetPosition);
-    this.light.shadow.camera.updateMatrixWorld();
-    this.light.shadow.camera.updateProjectionMatrix();
-
-    this.targetVelocity.x = this.Mouse.x - this.previousMouse.x;
-    this.targetVelocity.y = this.Mouse.y - this.previousMouse.y;
-    this.previousMouse.copy(this.Mouse);
-    this.crVelocity.lerp(this.targetVelocity, 0.1);
-    this.crMousePos.lerp(this.Mouse, 0.05);
-
+  private generateContactShadow() {
     const initialBackground = this.scene.background;
     const initialOverride = this.scene.overrideMaterial;
 
@@ -321,6 +295,52 @@ export class SceneManager {
     this.scene.backgroundNode = null;
     this.scene.background = initialBackground;
     this.scene.overrideMaterial = initialOverride;
+  }
+
+  async init() {
+    try {
+      await this.renderer.init();
+
+      if (this.isDestroyed) {
+        this.renderer.dispose();
+        return;
+      }
+
+      await this.loadModel();
+      await this.renderer.compileAsync(this.scene, this.camera);
+      if (this.isDestroyed) return;
+
+      // 3. THE MOBILE FIX: Force the absolute heaviest frame right now.
+      this.renderer.render(this.scene, this.camera);
+
+      // 4. THE CPU BREATHER: Yield the main thread so GSAP doesn't choke.
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      if (this.isDestroyed) return;
+
+      this.animate();
+    } catch (error) {
+      console.warn("WebGPU initialization or loading aborted:", error);
+    }
+  }
+
+  private time = new THREE.Timer();
+  private animationId: number | null = null;
+
+  private animate = () => {
+    if (this.isDestroyed) return;
+
+    this.animationId = requestAnimationFrame(this.animate);
+    this.time.update();
+
+    // Removed the heavy static lighting matrix updates from here!
+
+    this.targetVelocity.x = this.Mouse.x - this.previousMouse.x;
+    this.targetVelocity.y = this.Mouse.y - this.previousMouse.y;
+    this.previousMouse.copy(this.Mouse);
+    this.crVelocity.lerp(this.targetVelocity, 0.1);
+    this.crMousePos.lerp(this.Mouse, 0.05);
+
+    // Removed the double-rendering Contact shadow from here!
 
     this.renderPipeline.render();
   };
@@ -333,16 +353,16 @@ export class SceneManager {
   }
 
   public warmUpGPU() {
-    if (this.renderer && this.scene && this.camera && !this.isDestroyed) {
-      this.renderer.render(this.scene, this.camera);
-      this.renderer.clear();
-    }
+    // Left empty or removed, because we now handle forced warm-up inside init() safely.
   }
 
   public destroy() {
     this.isDestroyed = true; // Trip the breaker
 
     if (this.animationId) cancelAnimationFrame(this.animationId);
+
+    window.removeEventListener("resize", this.handleResize);
+    document.removeEventListener("mousemove", this.handleMouseMove);
 
     if (this.contactShadowTarget) {
       this.contactShadowTarget.dispose();
@@ -353,6 +373,10 @@ export class SceneManager {
         this.contactShadowTarget.depthTexture.dispose();
       }
     }
+    
+    if (this.light && this.light.shadow && this.light.shadow.map) {
+      this.light.shadow.map.dispose();
+    }
 
     if (this.scene.environment) {
       this.scene.environment.dispose();
@@ -361,35 +385,14 @@ export class SceneManager {
       this.scene.environment = null;
     }
 
-    this.scene.traverse((object: any) => {
-      if (!object.isMesh) return;
-      if (object.geometry) object.geometry.dispose();
-
-      if (object.material) {
-        if (Array.isArray(object.material)) {
-          object.material.forEach((mat: THREE.Material) =>
-            this.disposeMaterialAssets(mat),
-          );
-        } else {
-          this.disposeMaterialAssets(object.material);
-        }
-      }
-    });
+    // Notice we DO NOT dispose of the geometries here anymore, 
+    // because they are held in the gltfCache for the next page visit!
+    if (this.mesh) {
+      this.scene.remove(this.mesh);
+    }
 
     if (this.renderer && typeof this.renderer.dispose === "function") {
       this.renderer.dispose();
-    }
-  }
-
-  public disposeMaterialAssets(material: THREE.Material | any) {
-    material.dispose();
-    for (const key in material) {
-      const value = material[key];
-      if (value && value.isTexture) {
-        value.dispose();
-        delete value._webgpuTexture;
-        delete value.isWebGPUTexture;
-      }
     }
   }
 }
