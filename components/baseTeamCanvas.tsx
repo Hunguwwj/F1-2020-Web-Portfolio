@@ -53,6 +53,7 @@ export type ViewConfig = {
   titleContainerClass: string;
   titleClass: string;
   subtitleClass?: string;
+  extraContainerClass?: string;
   textEffect: TextEffect;
   exitAnim: gsap.TweenVars;
   canvasShift: string;
@@ -102,7 +103,13 @@ type TextLayerProps = {
   viewData: Record<ViewKey, ViewConfig>;
 };
 
-function TextLayer({ layer, activeView, titleRef, theme, viewData }: TextLayerProps) {
+function TextLayer({
+  layer,
+  activeView,
+  titleRef,
+  theme,
+  viewData,
+}: TextLayerProps) {
   const data = viewData[activeView];
   const isTitleOnThisLayer = data.titleLayer === layer;
   const shouldShowExtraText = layer === "front-car";
@@ -124,23 +131,33 @@ function TextLayer({ layer, activeView, titleRef, theme, viewData }: TextLayerPr
           </h1>
         </div>
 
-        {shouldShowExtraText && data.showLine && (
-          <div className="mb-4 mt-2 flex w-full max-w-[45vw] justify-center overflow-hidden">
-            <div
-              className="decorative-line h-0.5 w-full origin-center opacity-0 will-change-transform"
-              style={{ backgroundColor: theme.line }}
-            />
-          </div>
-        )}
+        {/* 🚨 THE FIX: Wrap line and subtitle to move them together */}
+        {shouldShowExtraText && (data.showLine || data.subtitle) && (
+          <div
+            className={
+              data.extraContainerClass ||
+              "mt-2 flex w-full flex-col items-center"
+            }
+          >
+            {data.showLine && (
+              <div className="mb-4 flex w-full max-w-[45vw] justify-center overflow-hidden">
+                <div
+                  className="decorative-line h-0.5 w-full origin-center opacity-0 will-change-transform"
+                  style={{ backgroundColor: theme.line }}
+                />
+              </div>
+            )}
 
-        {shouldShowExtraText && data.subtitle && (
-          <div className="mt-0 overflow-hidden pl-10 pr-10 text-center">
-            <p
-              className={data.subtitleClass ?? BASE_SUBTITLE_CLASS}
-              style={{ color: getSubtitleColor(data, theme) }}
-            >
-              {data.subtitle}
-            </p>
+            {data.subtitle && (
+              <div className="overflow-hidden px-10 text-center">
+                <p
+                  className={data.subtitleClass ?? BASE_SUBTITLE_CLASS}
+                  style={{ color: getSubtitleColor(data, theme) }}
+                >
+                  {data.subtitle}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -495,11 +512,12 @@ export default function BaseTeamCanvas({
       {/* 3. 3D canvas container */}
       <div
         ref={containerRef}
-        className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center will-change-transform"
+        // Expanded the screen to 150vw and 130vh, and centered it using top-1/2 left-1/2
+        className="pointer-events-none absolute top-1/2 left-1/2 z-20 flex h-[130vh] w-[150vw] -translate-x-1/2 -translate-y-1/2 items-center justify-center will-change-transform"
       >
         <canvas
           ref={canvasRef}
-          className="w-full h-full outline-none opacity-0"
+          className="h-full w-full outline-none opacity-0"
         />
       </div>
 

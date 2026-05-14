@@ -11,26 +11,33 @@ const ALFA_MODEL = {
 };
 
 const ALFA_THEME = {
-  sectionBackground: "linear-gradient(180deg, #900000 0%, #5A0000 55%, #130508 100%)",
-  cinematicBar: "#FFF4F4",
-  backgroundTitleColor: "rgba(255, 244, 244, 0.28)",
-  viewTitleColor: "#FFF4F4",
-  mainText: "#FFF4F4",
-  line: "#FFF4F4",
-  buttonActiveBg: "#FFF4F4",
-  buttonActiveText: "#130508",
-  buttonActiveBorder: "#FFF4F4",
-  buttonIdleBg: "rgba(255, 244, 244, 0.08)",
-  buttonIdleText: "#FFF4F4",
-  buttonIdleBorder: "rgba(255, 244, 244, 0.42)",
+  // New Light Gradient (Based on the old #FFF4F4 bar color)
+  sectionBackground:
+    "linear-gradient(180deg, #FFFFFF 0%, #FFF4F4 55%, #E5D5D5 100%)",
+
+  // New Dark Cinematic Bar (Based on the old dark red background)
+  cinematicBar: "#130508",
+
+  // Inverted Text Colors for Light Background
+  backgroundTitleColor: "rgba(90, 0, 0, 0.28)", // Faint dark red for background shadow
+  viewTitleColor: "#130508", // Very dark color for primary titles
+  mainText: "#130508",
+  line: "#900000", // Sharp red line
+
+  // Inverted Button States
+  buttonActiveBg: "#130508",
+  buttonActiveText: "#FFF4F4",
+  buttonActiveBorder: "#130508",
+  buttonIdleBg: "rgba(19, 5, 8, 0.08)",
+  buttonIdleText: "#130508",
+  buttonIdleBorder: "rgba(19, 5, 8, 0.42)",
 };
 
-// 🚨 Added explicit typing here to lock in the string literals!
 const ALFA_VIEWS: Record<ViewKey, ViewConfig> = {
   side: {
     title: "ALFA ROMEO",
     subtitle: "Alfa Romeo Racing ORLEN",
-    titleColor: "rgba(255, 244, 244, 0.28)",
+    titleColor: "rgba(90, 0, 0, 0.28)", // Use the faint red behind car
     subtitleUseTitleColor: false,
     labelLeft: "SWISS PRECISION",
     labelRight: "HINWIL, SWITZERLAND",
@@ -43,6 +50,10 @@ const ALFA_VIEWS: Record<ViewKey, ViewConfig> = {
       "absolute inset-0 flex flex-col items-center justify-center font-akira",
     titleClass:
       "font-black uppercase tracking-wide leading-none text-[10.18vw]",
+
+    // 🚨 THE FIX: This pushes the line and subtitle down by 25vh!
+    extraContainerClass: "mt-[2vh] flex w-full flex-col items-center",
+
     textEffect: "blink-slide",
     exitAnim: {
       y: 220,
@@ -55,7 +66,7 @@ const ALFA_VIEWS: Record<ViewKey, ViewConfig> = {
   front: {
     title: "C39",
     subtitle: "Burgundy Line",
-    titleColor: "#FFF4F4",
+    titleColor: "rgba(90, 0, 0, 0.28)",
     subtitleUseTitleColor: true,
     labelLeft: "CHASSIS",
     labelRight: "2020",
@@ -79,7 +90,7 @@ const ALFA_VIEWS: Record<ViewKey, ViewConfig> = {
   cockpit: {
     title: '"LEAVE ME ALONE, I KNOW WHAT TO DO."',
     subtitle: "KIMI RAIKKONEN",
-    titleColor: "#FFF4F4",
+    titleColor: "rgba(120, 20, 0, 1)",
     subtitleUseTitleColor: true,
     labelLeft: "",
     labelRight: "",
@@ -91,7 +102,7 @@ const ALFA_VIEWS: Record<ViewKey, ViewConfig> = {
     titleContainerClass:
       "absolute top-[35vh] w-full flex flex-col items-center justify-center",
     titleClass:
-      "max-w-5xl text-center font-mono text-3xl leading-tight md:text-5xl",
+      "max-w-4xl text-center font-mono text-3xl leading-tight md:text-6xl",
     textEffect: "blur",
     exitAnim: {
       scale: 1.05,
@@ -106,10 +117,10 @@ const ALFA_VIEWS: Record<ViewKey, ViewConfig> = {
 
 export default function AlfaRomeoCanvas() {
   return (
-    <BaseTeamCanvas 
-      model={ALFA_MODEL} 
-      theme={ALFA_THEME} 
-      viewData={ALFA_VIEWS} 
+    <BaseTeamCanvas
+      model={ALFA_MODEL}
+      theme={ALFA_THEME}
+      viewData={ALFA_VIEWS}
     />
   );
 }
