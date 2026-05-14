@@ -18,7 +18,7 @@ const RENAULT_DATA: TeamPageData = {
   storyLabelLeft: "The Story",
   theme: {
     pageBackground: "#111006",
-    surface: "#FFFBE0",
+    surface: "#FFFFFF",
     text: "#FFFBE0",
     mutedText: "#C8BF6A",
     accent: "#FFF500",

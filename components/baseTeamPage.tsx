@@ -443,7 +443,7 @@ function PrimaryDriverSection({ data }: { data: TeamPageData }) {
         </div>
       </div>
       <div className="relative z-10 flex w-full items-center">
-        <div className="gsap-slide-left relative z-20 mt-5 flex w-[45%] flex-col justify-center bg-[#111] p-16 text-white shadow-2xl xl:p-24">
+        <div className="gsap-slide-left relative z-20 mt-5 flex w-[60%] flex-col justify-center bg-[#111] p-16 text-white shadow-2xl xl:p-24">
           <div className="absolute -top-10 left-16">
             <PlayLink href={driver.videoUrl} accent={data.theme.accent} />
           </div>
@@ -465,8 +465,8 @@ function PrimaryDriverSection({ data }: { data: TeamPageData }) {
             {driver.videoLabel}
           </Link>
         </div>
-        <div className="gsap-slide-right relative z-30 -ml-16 flex w-[55%] items-center">
-          <div className="relative flex h-[500px] w-full items-center justify-center overflow-hidden border-8 border-white bg-gray-300 shadow-2xl md:h-[600px]">
+        <div className="gsap-slide-right relative z-30 -ml-16 flex w-[40%] items-center">
+          <div className="relative flex h-125 w-full items-center justify-center overflow-hidden border-8 border-white bg-gray-300 shadow-2xl md:h-[900px]">
             <Image
               src={data.images.primaryDriverPortrait}
               alt={driver.name}
