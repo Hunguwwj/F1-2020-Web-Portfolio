@@ -8,7 +8,7 @@ export const startMainShow = (
   bottomBar: HTMLDivElement | null,
   onComplete?: () => void,
 ) => {
-  engine.camera.position.set(-5, 0.7, 8);
+  engine.camera.position.set(-6.5, 0.7, 8);
   engine.camera.rotation.set(0, -Math.PI / 2, 0);
   engine.light.position.set(0, 3, 0);
 
@@ -65,23 +65,23 @@ export const triggerCameraView = (
   let containerRotation = 0;
 
   if (view === "side") {
-    targetPosition = { x: -5, y: 0.7, z: 0 };
+    targetPosition = { x: -6.5, y: 0.7, z: 0 };
     targetRotation = { x: 0, y: -Math.PI / 2, z: 0 };
-    LightPosition = { x: 0, y: 3, z: 0 };
+    LightPosition = { x: 1, y: 3, z: 0 };
     topBarOffset = "38vh";
     bottomBarOffset = "38vh";
     containerRotation = 0;
   } else if (view === "front") {
-    targetPosition = { x: -1.7, y: 0.5, z: 3.5 };
+    targetPosition = { x: -2.3, y: 0.5, z: 4. };
     targetRotation = { x: 0, y: -Math.PI * 0.2, z: 0 };
-    LightPosition = { x: 2, y: 3, z: 0 };
+    LightPosition = { x: 2, y: 2, z: 0 };
     topBarOffset = "150vh";
     bottomBarOffset = "20vh";
     containerRotation = 20;
   } else if (view === "cockpit") {
-    targetPosition = { x: -0, y: 8, z: 0.2 };
+    targetPosition = { x: -0, y: 10, z: 0. };
     targetRotation = { x: -Math.PI / 2, y: 0, z: 0 };
-    LightPosition = { x: 3, y: 3, z: 0 };
+    LightPosition = { x: 4, y: 2, z: 0 };
     topBarOffset = "84vh";
     bottomBarOffset = "84vh";
     containerRotation = 90;

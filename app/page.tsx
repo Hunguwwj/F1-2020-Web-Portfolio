@@ -374,7 +374,7 @@ export default function Home() {
 
               {/* FIX: Added logo-container-{index} and default left positioning */}
               <div
-                className={`logo-container-${index} absolute top-[15%] flex items-center justify-center z-30 pointer-events-none`}
+                className={`logo-container-${index} absolute top-[15%] flex items-center justify-center z-30 pointer-events-none opacity-0`}
                 style={{
                   left: `${getLogoCenter(index, -1)}%`,
                   transform: "translateX(-50%)",
